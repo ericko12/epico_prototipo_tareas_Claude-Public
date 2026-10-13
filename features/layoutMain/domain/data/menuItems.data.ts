@@ -16,6 +16,7 @@ import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import ContactPageIcon from "@mui/icons-material/ContactPage";
 import SettingsIcon from "@mui/icons-material/Settings";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import ScannerIcon from "@mui/icons-material/Scanner";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import { PATH_PAGE } from "@/routes/paths";
@@ -50,6 +51,9 @@ export const menuItems: IMenuItem[] = [
     { key: "6-99", label: "Agenda", route: PATH_PAGE.agenda.root, isNew: true },
     { key: "6-11", label: "Listado de rutas", route: PATH_PAGE.agenda.listadoRuta },
     { key: "6-12", label: "Nueva ruta", route: PATH_PAGE.agenda.nuevaRuta },
+  ]},
+  { key: "20", label: "Seguimiento comercial", icon: AssignmentIcon, route: "/Tareas", subItems: [
+    { key: "20-1", label: "Mis Tareas", route: "/Tareas", isNew: true },
   ]},
   { key: "7", label: "Historial de pagos", icon: PaidIcon, route: m("pagos"), subItems: [
     { key: "7-13", label: "Listado de pagos", route: m("pagos") },
