@@ -30,3 +30,13 @@ Columnas definitivas y su orden, filtros aprobados, catálogo real de tipos y re
 
 ## Nota
 Pantalla de discovery para validar interacción con Key Users; **no implica aprobación funcional ni Ready for Dev**.
+
+## Corte funcional 13-10-2026 — SPEC-F2-003 v0.5
+- Roles simulados: Asesor, Gerente regional, territorial y nacional, con jerarquía ficticia. No sustituye una autorización backend real.
+- El asesor únicamente se autoasigna tareas. La gerencia asigna/reasigna dentro de su estructura.
+- Solo el asignado puede completar. Reapertura con motivo únicamente por supervisor de su alcance.
+- Se usan requisitos de cierre por tipo (comentario, archivo, ambos o ninguno) como **ejemplos no validados**.
+- Cada nueva tarea conserva copia de las condiciones del tipo al crearla. Las tareas precargadas utilizan la configuración demostrativa predeterminada.
+- Una tarea reabierta mantiene vencimiento original e historial. El motivo debe atenderse para un nuevo cierre.
+- **Limitación del simulador:** elegir un archivo solo guarda el nombre, no los bytes; no hay validación real de archivos, permisos, persistencia ni API.
+- **Pendientes Luis Galván:** catálogo y cierre por tipo reales; campos editables; excepciones de áreas transversales; jerarquía efectiva; columnas/filtros; automatizaciones; avisos/SLA; cancelación/reprogramación; evidencia corregida y migración histórica.
