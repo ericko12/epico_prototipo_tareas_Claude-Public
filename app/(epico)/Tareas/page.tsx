@@ -104,7 +104,7 @@ export default function TareasPage(){
           <Typography><b>Instrucciones:</b> {selectedTask.detail||"Sin instrucciones adicionales"}</Typography>
           <Divider/><Typography fontWeight={700}>Historial de simulación</Typography>{selectedTask.history.map((h,i)=><Typography key={i} variant="body2" color="text.secondary">• {h}</Typography>)}
           <Divider/><TextField label="Comentario de ejecución (opcional)" multiline minRows={2} value={comment} onChange={e=>setComment(e.target.value)} disabled={selectedTask.status==="Completada"||!isOwner(selectedTask)}/>
-          <Button component="label" variant="outlined" disabled={selectedTask.status==="Completada"||!isOwner(selectedTask)} startIcon={<EditOutlined/>>Adjuntar archivo (simulación)<input type="file" hidden onChange={e=>setEvidence(e.target.files?.[0]?.name||"")}/></Button>
+          <Button component="label" variant="outlined" disabled={selectedTask.status==="Completada"||!isOwner(selectedTask)} startIcon={<EditOutlined/>}>Adjuntar archivo (simulación)<input type="file" hidden onChange={e=>setEvidence(e.target.files?.[0]?.name||"")}/></Button>
           {evidence&&<Typography variant="caption">Archivo seleccionado: {evidence} (no se carga a ningún servidor)</Typography>}
           <Alert severity="info">Condiciones originales: {closeRule(selectedTask).comment?"Comentario requerido":"Comentario opcional"} y {closeRule(selectedTask).evidence?"archivo requerido":"archivo opcional"}.</Alert>
           {selectedTask.reopenReason&&<Alert severity="warning">Observación: {selectedTask.reopenReason}. Vencimiento original conservado.</Alert>}
