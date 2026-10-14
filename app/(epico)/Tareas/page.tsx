@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Snackbar, Stack, Tab, Tabs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { Add, AssignmentTurnedIn, CheckCircleOutline, EditOutlined, Replay, Search, VisibilityOutlined } from "@mui/icons-material";
+import { Add, AssignmentTurnedIn, CheckCircleOutline, EditOutlined, Replay, Search, VisibilityOutlined, Tune, RadioButtonUnchecked } from "@mui/icons-material";
 import { useSetBreadcrumb } from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
 
 type Status = "Pendiente" | "Completada";
@@ -43,6 +43,7 @@ export default function TareasPage(){
   const [relationKind,setRelationKind]=useState("Sin relación"),[relationQuery,setRelationQuery]=useState(""),[relationId,setRelationId]=useState("");
   const [showAllVisits,setShowAllVisits]=useState(false);
   const relationOptions=RECORDS.filter(r=>(relationKind===r.kind)&&((r.kind!=="Visita"||showAllVisits||r.date!>=today))&&(!relationQuery||[r.name,r.id,r.clientId,r.address,r.date||""].join(" ").toLowerCase().includes(relationQuery.toLowerCase())));
+  const [mobileFilters,setMobileFilters]=useState(false);
   const [form,setForm]=useState(blank),[createOpen,setCreateOpen]=useState(false),[selected,setSelected]=useState<number|null>(null),[comment,setComment]=useState(""),[evidence,setEvidence]=useState(""),[notice,setNotice]=useState("");
   const selectedTask=tasks.find(t=>t.id===selected);
   const isOverdue=(t:Task)=>t.status==="Pendiente"&&t.due<today;
@@ -77,33 +78,56 @@ export default function TareasPage(){
     if(!reopenReason.trim()){setNotice("Es obligatorio indicar motivo.");return}
     change({status:"Pendiente",reopenReason:reopenReason.trim(),history:[...selectedTask.history,"Reabierta por "+actor+": "+reopenReason.trim()]});setReopenReason("");setSelected(null);setNotice("Tarea reabierta.");
   };
+  const mobileCheck=(t:Task)=>{
+    if(!isOwner(t)||t.status==="Completada")return;
+    const required=closeRule(t);
+    if(required.comment||required.evidence||t.reopenReason){openDetail(t.id);return;}
+    setTasks(old=>old.map(x=>x.id===t.id?{...x,status:"Completada",history:[...x.history,"Completada por "+actor+" · cierre rápido móvil"]}:x));
+    setNotice("Tarea completada.");
+  };
   const openDetail=(id:number)=>{const t=tasks.find(x=>x.id===id);setSelected(id);setComment("");setEvidence(t?.evidence||"");setReassignTo(t?.assigned||"");setReopenReason("")};
   const stateChip=(t:Task)=><Chip size="small" label={t.status==="Completada"?"Completada":isOverdue(t)?"Vencida":"Pendiente"} color={t.status==="Completada"?"success":isOverdue(t)?"error":"warning"} variant="outlined"/>;
   return <Box sx={{p:{xs:2,md:3},pb:12}}>
     <Alert severity="info" sx={{mb:3}}><b>SIMULADOR · SPEC-F2-003.</b> Datos ficticios; sin conexión con Salesforce ni con Épico. Estados, tipos, evidencia y permisos sujetos a validación de negocio.</Alert>
-    <Paper variant="outlined" sx={{p:2,mb:2}}><Stack direction={{xs:"column",sm:"row"}} spacing={2} alignItems={{sm:"center"}}><Typography fontWeight={700}>Simular permisos:</Typography><FormControl size="small" sx={{minWidth:185}}><InputLabel>Rol</InputLabel><Select label="Rol" value={role} onChange={e=>{setRole(e.target.value as Role);setSelected(null)}}>{(Object.keys(HIERARCHY) as Role[]).map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><Typography variant="body2" color="text.secondary">Usuario: {actor} · jerarquía ficticia</Typography></Stack></Paper>
+    <Paper variant="outlined" sx={{p:2,mb:2,display:{xs:"none",sm:"block"}}}><Stack direction={{xs:"column",sm:"row"}} spacing={2} alignItems={{sm:"center"}}><Typography fontWeight={700}>Simular permisos:</Typography><FormControl size="small" sx={{minWidth:185}}><InputLabel>Rol</InputLabel><Select label="Rol" value={role} onChange={e=>{setRole(e.target.value as Role);setSelected(null)}}>{(Object.keys(HIERARCHY) as Role[]).map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><Typography variant="body2" color="text.secondary">Usuario: {actor} · jerarquía ficticia</Typography></Stack></Paper>
     <Stack direction={{xs:"column",sm:"row"}} alignItems={{xs:"stretch",sm:"center"}} justifyContent="space-between" spacing={2} sx={{mb:3}}>
       <Box><Typography variant="h5" fontWeight={700}>Mis Tareas</Typography><Typography variant="body2" color="text.secondary">Seguimiento comercial y pendientes asignados</Typography></Box>
       <Button variant="contained" startIcon={<Add/>} onClick={()=>{setForm({...blank,assigned:actor});setRelationKind("Sin relación");setRelationQuery("");setRelationId("");setShowAllVisits(false);setCreateOpen(true)}}>Crear tarea</Button>
     </Stack>
-    <Stack direction={{xs:"column",sm:"row"}} spacing={2} sx={{mb:3}}>
-      {[["Pendientes",counts.pending],["Vencidas",counts.overdue],["Completadas",counts.done]].map(([label,n])=><Paper key={label} variant="outlined" sx={{flex:1,p:2,cursor:"pointer"}} onClick={()=>setTab(String(label))}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="h4" fontWeight={700}>{n}</Typography></Paper>)}
+    <Stack direction={{xs:"row",sm:"row"}} spacing={{xs:1,sm:2}} sx={{mb:3}}>
+      {[["Pendientes",counts.pending],["Vencidas",counts.overdue],["Completadas",counts.done]].map(([label,n])=><Paper key={label} variant="outlined" sx={{flex:1,p:{xs:1.2,sm:2},minWidth:0,cursor:"pointer"}} onClick={()=>setTab(String(label))}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant={mobile?"h5":"h4"} fontWeight={700}>{n}</Typography></Paper>)}
     </Stack>
-    <Paper variant="outlined" sx={{p:2}}>
+    {mobile&&<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mb:2}}>
+      <Typography variant="h6" fontWeight={700}>Por hacer</Typography>
+      <Button size="small" variant="outlined" startIcon={<Tune/>} onClick={()=>setMobileFilters(v=>!v)}>{mobileFilters?"Ocultar filtros":"Filtros"}</Button>
+    </Stack>}
+    <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}>
       <Tabs value={tab} onChange={(_,v)=>setTab(v)} variant="scrollable" scrollButtons="auto" sx={{mb:2}}>
         {["Todas","Pendientes","Vencidas","Completadas"].map(t=><Tab key={t} value={t} label={t}/>)}
       </Tabs>
-      <Stack direction={{xs:"column",md:"row"}} spacing={1.5} sx={{mb:2}}>
+      <Stack direction={{xs:"column",md:"row"}} spacing={1.5} sx={{mb:2,display:{xs:mobileFilters?"flex":"none",sm:"flex"}}}>
         <FormControl size="small" sx={{flex:1,minWidth:135}}><InputLabel>Buscar por</InputLabel><Select label="Buscar por" value={searchBy} onChange={e=>{setSearchBy(e.target.value);setQuery("")}}>{["Tarea","Cliente","ID de cliente","Dirección"].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
         <TextField size="small" label={searchBy==="Tarea"?"Asunto o ID de tarea":searchBy} value={query} onChange={e=>setQuery(e.target.value)} InputProps={{startAdornment:<Search sx={{mr:1,color:"text.secondary"}}/>}} sx={{flex:2}}/>
         <FormControl size="small" sx={{flex:1,minWidth:145}}><InputLabel>Tipo</InputLabel><Select label="Tipo" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>{["Todos",...TYPES].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
         <FormControl size="small" sx={{flex:1,minWidth:145}}><InputLabel>Asignado</InputLabel><Select label="Asignado" value={userFilter} onChange={e=>setUserFilter(e.target.value)}>{["Todos",...USERS].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        </Stack><Stack direction={{xs:"column",sm:"row"}} spacing={1.5} sx={{mb:2}} alignItems={{sm:"center"}}>
+        </Stack><Stack direction={{xs:"column",sm:"row"}} spacing={1.5} sx={{mb:2,display:{xs:mobileFilters?"flex":"none",sm:"flex"}}} alignItems={{sm:"center"}}>
         <TextField size="small" type="date" label="Vence desde" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} InputLabelProps={{shrink:true}}/>
         <TextField size="small" type="date" label="Vence hasta" value={dateTo} onChange={e=>setDateTo(e.target.value)} inputProps={{min:dateFrom||undefined}} InputLabelProps={{shrink:true}}/>
         <Button size="small" onClick={()=>{setDateFrom("");setDateTo("")}}>Limpiar fechas</Button>
       </Stack>
-      {mobile?<Stack spacing={1}>{visible.map(t=><Paper key={t.id} variant="outlined" sx={{p:2}}><Stack direction="row" justifyContent="space-between" alignItems="center">{stateChip(t)}<Typography variant="caption">#{t.id}</Typography></Stack><Typography fontWeight={700} sx={{mt:1}}>{t.subject}</Typography><Typography variant="body2" color="text.secondary">{t.assigned} · {t.due}</Typography><Typography variant="body2">{t.related||"Sin registro relacionado"}</Typography><Button onClick={()=>openDetail(t.id)}>Ver detalle</Button></Paper>)}</Stack>:
+      {mobile?<Stack spacing={1.25}>{visible.map(t=><Paper key={t.id} variant="outlined" sx={{p:1.5,borderRadius:2}}>
+        <Stack direction="row" alignItems="flex-start" spacing={1.2}>
+          <Button aria-label={t.status==="Completada"?"Tarea completada":"Marcar tarea como completada"} disabled={!isOwner(t)||t.status==="Completada"} onClick={()=>mobileCheck(t)} sx={{minWidth:40,px:0,pt:0.4}}>
+            {t.status==="Completada"?<CheckCircleOutline color="success"/>:<RadioButtonUnchecked color="primary"/>}
+          </Button>
+          <Box sx={{flex:1,minWidth:0}} onClick={()=>openDetail(t.id)}>
+            <Typography fontWeight={700} sx={{textDecoration:t.status==="Completada"?"line-through":"none",opacity:t.status==="Completada"?.6:1}}>{t.subject}</Typography>
+            <Typography variant="body2" color="text.secondary">{t.related||"Actividad interna"}</Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{mt:1,flexWrap:"wrap"}}>{stateChip(t)}<Typography variant="caption" color="text.secondary">Vence: {t.due}</Typography></Stack>
+            {t.status!=="Completada"&&<Typography variant="caption" color="text.secondary">{closeRule(t).comment&&closeRule(t).evidence?"Requiere comentario y evidencia":closeRule(t).comment?"Requiere comentario":closeRule(t).evidence?"Requiere evidencia":"Cierre directo"}</Typography>}
+          </Box><Button size="small" onClick={()=>openDetail(t.id)} sx={{minWidth:40,px:.5}}>Ver</Button>
+        </Stack>
+      </Paper>)}</Stack>:
       <TableContainer><Table size="small"><TableHead><TableRow>{["Asunto","Tipo","Asignado","Cliente / registro","Vence","Estado","Origen","Acción"].map(x=><TableCell key={x} sx={{fontWeight:700,whiteSpace:"nowrap"}}>{x}</TableCell>)}</TableRow></TableHead><TableBody>{visible.map(t=><TableRow hover key={t.id}><TableCell>{t.subject}</TableCell><TableCell>{t.type}</TableCell><TableCell>{t.assigned}</TableCell><TableCell>{t.related||"Sin relación"}</TableCell><TableCell sx={{whiteSpace:"nowrap"}}>{t.due}</TableCell><TableCell>{stateChip(t)}</TableCell><TableCell>{t.source}</TableCell><TableCell><Button size="small" startIcon={<VisibilityOutlined/>} onClick={()=>openDetail(t.id)}>Ver</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer>}
       {visible.length===0&&<Typography color="text.secondary" align="center" sx={{py:5}}>No hay tareas con estos filtros.</Typography>}
     </Paper>
