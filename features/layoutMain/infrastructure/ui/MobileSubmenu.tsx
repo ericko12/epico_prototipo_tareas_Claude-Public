@@ -1,5 +1,5 @@
 "use client";
-// Basado en mobileSubmenu/MobileSubmenu.tsx (+ styles). Se agrega "Agenda" como quinto acceso.
+// Basado en mobileSubmenu/MobileSubmenu.tsx (+ styles). Se priorizan Agenda y Tareas en los cinco accesos; Cajas continúa en el menú lateral.
 import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
 import { Assignment, CalendarMonth, Inventory, LocalShipping, Scanner } from "@mui/icons-material";
 import { usePathname, useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ export const MobileSubmenu = () => {
         <BottomNavigationAction label="Catálogo" value={PATH_PAGE.modulo("catalogo")} icon={<Inventory />} />
         <BottomNavigationAction label="Pedido" value={PATH_PAGE.modulo("monitoreo-pedidos")} icon={<LocalShipping />} />
         <BottomNavigationAction label="Agenda" value={PATH_PAGE.agenda.root} icon={<CalendarMonth />} />
-        <BottomNavigationAction label="Cajas" value={PATH_PAGE.modulo("cajas")} icon={<Assignment />} />
+        <BottomNavigationAction label="Tareas" value="/Tareas" icon={<Assignment />} />
         <BottomNavigationAction label="Digitalizar" value={PATH_PAGE.modulo("digitalizar")} icon={<Scanner />} />
       </BottomNavigation>
     </Paper>
