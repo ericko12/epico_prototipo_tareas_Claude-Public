@@ -2,7 +2,7 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {Alert,Box,Button,Card,CardContent,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid2 as Grid,Paper,Stack,Tab,Tabs,TextField,Typography,FormControl,InputLabel,Select,MenuItem,RadioGroup,FormControlLabel,Radio,Snackbar} from "@mui/material";
-import {Add,ArrowBack,AssignmentOutlined,CalendarMonth,CheckCircle,LocationOn,Search,Visibility,PlayArrow,StopCircle} from "@mui/icons-material";
+import {Add,ArrowBack,AssignmentOutlined,CalendarMonth,CheckCircle,LocationOn,Search,Visibility,PlayArrow,StopCircle,Phone,Email,Edit,Storefront,AttachMoney,AccountCircle,AccountBalance,Event,Inventory2,LocalOffer,Work} from "@mui/icons-material";
 import {useSetBreadcrumb} from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
 type Client={id:string;name:string;rfc:string;phone:string;email:string;branch:string;seller:string;region:string;division:string;segment:string;address:string};
 const clients:Client[]=[
@@ -24,23 +24,38 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Stack spacing={1.5}>{clients.filter(c=>[c.id,c.name,c.rfc,c.branch,c.seller,c.address].join(" ").toLowerCase().includes(search.toLowerCase())).map(c=><Card key={c.id} variant="outlined"><CardContent><Stack direction={{xs:"column",sm:"row"}} justifyContent="space-between" alignItems={{sm:"center"}} spacing={2}><Box><Typography color="primary" fontWeight={700}>ID {c.id} · {c.name}</Typography><Typography variant="body2" color="text.secondary">{c.branch} · {c.address}</Typography><Typography variant="body2">Vendedor: {c.seller}</Typography></Box><Button variant="contained" startIcon={<Visibility/>} onClick={()=>{setDetail(c);setTab(0);setVisitFinished(false);setActiveVisit(false)}}>Ver detalle</Button></Stack></CardContent></Card>)}</Stack>
 </>:<>
 <Button startIcon={<ArrowBack/>} onClick={()=>{setDetail(null);setVisitOpen(false);setTaskOpen(false)}} sx={{mb:2}}>Listado de clientes</Button>
-<Paper variant="outlined" sx={{mb:2,p:2,minHeight:100}}><Button variant="outlined" sx={{minWidth:220,minHeight:70}}>NUEVA CAJA　＋</Button></Paper>
-<Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2,borderBottom:1,borderColor:"divider"}}><Tab label="INFORMACIÓN GENERAL"/><Tab label="RADIOGRAFÍA DEL CLIENTE"/></Tabs>
-{tab===0?<><Paper variant="outlined" sx={{p:2,mb:2}}>
-<Stack direction={{xs:"column",md:"row"}} spacing={2} alignItems={{md:"center"}} justifyContent="space-between">
-<Box sx={{flex:1,minWidth:200}}><Typography fontWeight={700}>ID {client.id}</Typography><Typography variant="h6" fontWeight={700}>{client.name}</Typography><Typography variant="body2" color="text.secondary">CONTACTO: 1 - {client.name}</Typography></Box>
-<Stack direction="row" spacing={1} sx={{flexWrap:"wrap"}}><Chip label={client.phone}/><Chip label={client.email}/></Stack>
+<Box sx={{mb:2,minHeight:145,p:2,border:"1px solid #e2e7ee",borderRadius:1}}><Button variant="outlined" sx={{width:280,minHeight:83,fontWeight:500}}>NUEVA CAJA　＋</Button></Box>
+<Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:0,borderBottom:1,borderColor:"divider","& .MuiTab-root":{fontWeight:600}}}><Tab label="INFORMACIÓN GENERAL"/><Tab label="RADIOGRAFÍA DEL CLIENTE"/></Tabs>
+{tab===0?<>
+<Box sx={{py:3,px:{xs:1,md:1.5},borderBottom:"1px solid #e2e7ee"}}>
+<Stack direction={{xs:"column",md:"row"}} spacing={2} alignItems={{md:"start"}} justifyContent="space-between">
+<Box sx={{minWidth:230,flex:"0 1 340px"}}>
+<Typography fontSize={20} fontWeight={700}>ID {client.id}</Typography>
+<Typography fontSize={21} fontWeight={700} sx={{mt:.4,mb:1.4}}>{client.name}</Typography>
+<Stack direction="row" alignItems="center" spacing={1}><Typography fontSize={20}>CONTACTO:</Typography><Button variant="outlined" size="small" startIcon={<AccountCircle/>} sx={{color:"#172a4b",textTransform:"none",whiteSpace:"nowrap"}}>1 - {client.name} ▾</Button></Stack>
+</Box>
+<Box sx={{flex:1,minWidth:250}}>
+<Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent={{md:"flex-end"}} sx={{mb:1.5}}>
+<Button variant="outlined" size="small" startIcon={<Phone/>} sx={{textTransform:"none",whiteSpace:"nowrap"}}>{client.phone}　⌄</Button>
+<Button variant="outlined" size="small" startIcon={<Email/>} sx={{textTransform:"none"}}>{client.email}　⌄</Button>
 </Stack>
-<Divider sx={{my:2}}/>
-<Box sx={{border:"2px dashed",borderColor:"primary.main",borderRadius:1,p:2,backgroundColor:"rgba(31,64,150,.03)"}}>
-<Typography variant="caption" color="primary" fontWeight={700}>ACCIONES COMERCIALES · PROPUESTA UX EN ZONA INDICADA</Typography>
-<Stack direction={{xs:"column",sm:"row"}} spacing={1} sx={{mt:1}}>
+<Stack direction="row" justifyContent={{md:"flex-end"}} flexWrap="wrap" gap={1}>
+<Button size="small" endIcon={<Edit/>} sx={{color:"#161616",textTransform:"none"}}>Editar</Button>
+<Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none",whiteSpace:"nowrap"}}>Carga Masiva</Button>
+<Button variant="contained" size="small" sx={{textTransform:"none",whiteSpace:"nowrap"}}>Búsqueda de producto</Button>
+</Stack>
+</Box>
+</Stack>
+<Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent="center" alignItems="center" sx={{mt:1.5,py:.5}}>
 <Button variant="outlined" startIcon={<AssignmentOutlined/>} onClick={()=>setTaskOpen(true)}>Crear tarea</Button>
-{!activeVisit?<Button variant="contained" startIcon={<PlayArrow/>} onClick={()=>setVisitOpen(true)}>Iniciar visita</Button>:<Button color="warning" variant="contained" startIcon={<StopCircle/>} onClick={()=>setVisitOpen(true)}>Cerrar visita</Button>}
-<Button variant="text" startIcon={<CalendarMonth/>} onClick={()=>router.push("/Agenda")}>Ver Agenda</Button>
-</Stack></Box>
-</Paper>
-<Grid container spacing={2} sx={{mb:2}}>{[["RFC",client.rfc],["FECHA DE ALTA","19 diciembre 2013"],["SUCURSAL ASIGNADA",client.branch],["DIVISIÓN",client.division],["SEGMENTO",client.segment],["ÚLTIMO PEDIDO","$166.18"],["PRONTO PAGO","10% Nota de Crédito"],["VENDEDOR ASIGNADO",client.seller],["REGIÓN",client.region],["LISTA DE PRECIOS","Distribuidor"],["LISTA P. PERSONALIZADA","No"],["LISTA NEGRA SMC","No"],["PORTAFOLIO","NO"]].map(([k,v])=><Grid key={k} size={{xs:12,sm:6,md:3}}><Paper variant="outlined" sx={{p:1.75,minHeight:84,borderRadius:2}}><Typography fontWeight={700} fontSize={13}>{k}</Typography><Typography variant="body2" sx={{mt:.8}}>{v}</Typography></Paper></Grid>)}</Grid>
+{!activeVisit?<Button variant="contained" startIcon={<PlayArrow/>} onClick={()=>setVisitOpen(true)}>Iniciar visita</Button>:<Button variant="contained" color="warning" startIcon={<StopCircle/>} onClick={()=>setVisitOpen(true)}>Cerrar visita</Button>}
+</Stack>
+</Box>
+<Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))",md:"repeat(5,minmax(0,1fr))"},gap:2,mt:3,mb:3}}>
+{[["RFC",client.rfc,<AccountBalance key="rfc"/>],["FECHA DE ALTA","19 diciembre 2013",<CalendarMonth key="fecha"/>],["SUCURSAL ASIGNADA",client.branch,<Storefront key="suc"/>],["DIVISIÓN",client.division,<Storefront key="div"/>],["SEGMENTO",client.segment,<LocalOffer key="seg"/>],["ÚLTIMO PEDIDO","$166.18",<AttachMoney key="ped"/>],["PRONTO PAGO","10% Nota de Crédito",<AttachMoney key="pronto"/>],["VENDEDOR ASIGNADO",client.seller,<AccountCircle key="vend"/>],["REGIÓN",client.region,<LocationOn key="reg"/>],["LISTA DE PRECIOS","Distribuidor",<AttachMoney key="pre"/>],["LISTA P. PERSONALIZADA","No",<AttachMoney key="pers"/>],["LISTA NEGRA SMC","No",<AttachMoney key="neg"/>],["PORTAFOLIO","NO",<Work key="port"/>]].map(([k,v,ico])=><Paper key={String(k)} variant="outlined" sx={{px:1.8,py:1.3,minHeight:82,borderRadius:2,boxShadow:"0 2px 5px rgba(17,48,95,.08)",borderColor:"#d8e2f0"}}>
+<Stack direction="row" spacing={1} alignItems="center"><Box sx={{"& svg":{fontSize:19},color:"#222"}}>{ico}</Box><Typography fontWeight={700} fontSize={14} noWrap>{k}</Typography></Stack>
+<Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
+</Box>
 <Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={()=>setTaskOpen(true)}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
 </>:<Paper variant="outlined" sx={{p:3}}><Typography fontWeight={700}>Radiografía del cliente</Typography><Typography color="text.secondary">Vista de referencia. Los indicadores y expedientes reales no están conectados.</Typography></Paper>}
 </>}
