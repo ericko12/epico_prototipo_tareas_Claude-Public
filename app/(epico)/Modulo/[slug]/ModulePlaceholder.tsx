@@ -5,10 +5,12 @@ import { CalendarMonth, ConstructionOutlined } from "@mui/icons-material";
 import { ColorsEpico } from "@/features/common/domain/enums/ColorsEpico";
 import { useSetBreadcrumb } from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
 import { PATH_PAGE } from "@/routes/paths";
+import ClientesDemo from "@/features/clientes/ClientesDemo";
 
 export const ModulePlaceholder = ({ label, parent }: { label: string; parent: string }) => {
   useSetBreadcrumb(parent === label ? [label] : [parent, label]);
   const router = useRouter();
+  if (label === "Listado de clientes" || label === "Clientes") return <ClientesDemo/>;
   return (
     <Box sx={{ minHeight: "calc(100vh - 140px)", display: "grid", placeItems: "center", p: 3, textAlign: "center" }}>
       <Box>
