@@ -3,7 +3,7 @@ import { Alert, Box, Snackbar } from "@mui/material";
 import { ColorsEpico } from "@/features/common/domain/enums/ColorsEpico";
 import { FontSizesEnum } from "@/features/common/domain/enums/FontSizes";
 import { FontWeightEnum } from "@/features/common/domain/enums/FontWeight";
-import { AgendaProvider, useAgenda } from "@/features/agenda/application/AgendaContext";
+import { useAgenda } from "@/features/agenda/application/AgendaContext";
 import { useSetBreadcrumb } from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
 import { AgendaHeader } from "./AgendaHeader";
 import { SimulationControls } from "./SimulationControls";
@@ -51,8 +51,4 @@ const AgendaContent = () => {
   );
 };
 
-export const AgendaPage = () => (
-  <AgendaProvider>
-    <AgendaContent />
-  </AgendaProvider>
-);
+export const AgendaPage = () => <AgendaContent />;
