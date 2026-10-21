@@ -12,9 +12,14 @@ const clients:Client[]=[
 {id:"315",name:"TALLER SAN JOSÉ",rfc:"TSJ100201XXX",phone:"3331234567",email:"taller@ejemplo.com",branch:"Guadalajara",seller:"YURIDIA TORRES",region:"Occidente",division:"Taller",segment:"Menudeo",address:"Col. Centro, Guadalajara"}];
 export default function ClientesDemo(){
 const router=useRouter();
+const taskTypes=["Seguimiento comercial","Enviar documentación","Llamada a cliente","Validación de información","Actividad interna"];
+const closeRules:Record<string,{comment:boolean;evidence:boolean}>={"Seguimiento comercial":{comment:true,evidence:false},"Enviar documentación":{comment:false,evidence:true},"Llamada a cliente":{comment:false,evidence:false},"Validación de información":{comment:true,evidence:true},"Actividad interna":{comment:false,evidence:false}};
 const [detail,setDetail]=useState<Client|null>(null),[search,setSearch]=useState(""),[tab,setTab]=useState(0),[visitOpen,setVisitOpen]=useState(false),[visitChoice,setVisitChoice]=useState("programada"),[activeVisit,setActiveVisit]=useState(false),[visitFinished,setVisitFinished]=useState(false),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
 useSetBreadcrumb(detail?["Clientes","Listado de clientes","Detalle"]:["Clientes","Listado de clientes"]);
+const [taskType,setTaskType]=useState(taskTypes[0]),[taskDetail,setTaskDetail]=useState(""),[taskRelation,setTaskRelation]=useState("Cliente"),[taskRelatedId,setTaskRelatedId]=useState(""),[taskAssigned,setTaskAssigned]=useState("Luis Galván"),[taskRole,setTaskRole]=useState("Asesor");
 const client=detail;
+const openTask=()=>{setTaskSubject("");setTaskDue(new Date().toISOString().slice(0,10));setTaskType(taskTypes[0]);setTaskDetail("");setTaskRelation("Cliente");setTaskRelatedId(detail?.id||"");setTaskAssigned("Luis Galván");setTaskOpen(true)};
+const createTask=()=>{if(!taskSubject.trim()||!taskType||!taskAssigned||!taskDue){setNotice("Completa asunto, tipo, responsable y vencimiento.");return}if(taskRelation!=="Sin relación"&&!taskRelatedId){setNotice("Selecciona un registro existente o elige Sin relación.");return}setTaskOpen(false);setNotice("Tarea creada en el simulador (no se guarda en backend).")};
 const visits=client?[{id:"VIS-131-01",label:"Visita programada · Hoy, 11:00 a. m.",date:"Hoy"},{id:"VIS-131-02",label:"Visita programada · Mañana, 10:00 a. m.",date:"Mañana"}]:[];
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Alert severity="info" sx={{mb:2}}><b>SIMULADOR DE CLIENTES.</b> Réplica visual de referencia, datos ficticios; no modifica Épico. Las visitas y tareas son escenarios para validar con negocio.</Alert>
@@ -48,7 +53,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </Box>
 </Stack>
 <Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent="center" alignItems="center" sx={{mt:1.5,py:.5}}>
-<Button variant="outlined" startIcon={<AssignmentOutlined/>} onClick={()=>setTaskOpen(true)}>Crear tarea</Button>
+<Button variant="outlined" startIcon={<AssignmentOutlined/>} onClick={openTask}>Crear tarea</Button>
 {!activeVisit?<Button variant="contained" startIcon={<PlayArrow/>} onClick={()=>setVisitOpen(true)}>Iniciar visita</Button>:<Button variant="contained" color="warning" startIcon={<StopCircle/>} onClick={()=>setVisitOpen(true)}>Cerrar visita</Button>}
 </Stack>
 </Box>
@@ -57,10 +62,23 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Stack direction="row" spacing={1} alignItems="center"><Box sx={{"& svg":{fontSize:19},color:"#222"}}>{ico}</Box><Typography fontWeight={700} fontSize={14} noWrap>{k}</Typography></Stack>
 <Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
 </Box>
-<Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={()=>setTaskOpen(true)}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
+<Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={openTask}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
 </>:<DiagnosticoDemo client={client}/>}
 </>}
-<Dialog open={taskOpen} onClose={()=>setTaskOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Crear tarea desde cliente</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><Alert severity="info">Relación precargada: Cliente ID {client?.id} · {client?.name}. En este flujo permanece fija.</Alert><TextField label="Asunto" required value={taskSubject} onChange={e=>setTaskSubject(e.target.value)}/><TextField label="Vencimiento" type="date" InputLabelProps={{shrink:true}} value={taskDue} onChange={e=>setTaskDue(e.target.value)}/><TextField label="Asignado a" value="Asesor responsable (simulado)" disabled/><Typography variant="caption" color="text.secondary">La creación desde el cliente se representa aquí para evaluar el acceso; no guarda en backend ni en el módulo de Tareas.</Typography></Stack></DialogContent><DialogActions><Button onClick={()=>setTaskOpen(false)}>Cancelar</Button><Button variant="contained" onClick={()=>{if(!taskSubject.trim()||!taskDue){setNotice("Completa asunto y vencimiento.");return}setTaskOpen(false);setTaskSubject("");setTaskDue("");setNotice("Creación de tarea simulada; asociación al cliente precargada.")}}>Simular creación</Button></DialogActions></Dialog>
+<Dialog open={taskOpen} onClose={()=>setTaskOpen(false)} fullWidth maxWidth="sm">
+<DialogTitle>CREAR NUEVA TAREA</DialogTitle>
+<DialogContent><Stack spacing={2} sx={{pt:1}}>
+<TextField required label="Asunto" value={taskSubject} onChange={e=>setTaskSubject(e.target.value)}/>
+<FormControl fullWidth><InputLabel>Tipo de tarea</InputLabel><Select label="Tipo de tarea" value={taskType} onChange={e=>setTaskType(e.target.value)}>{taskTypes.map(t=><MenuItem key={t} value={t}>{t}</MenuItem>)}</Select></FormControl>
+<TextField label="Asignado a" value={taskAssigned} disabled/>
+<Alert severity="info">Cierre: {closeRules[taskType]?.comment?"Comentario obligatorio":"Comentario opcional"} y {closeRules[taskType]?.evidence?"evidencia obligatoria":"evidencia opcional"} (ejemplo para validar).</Alert>
+<Typography variant="subtitle2">Relacionar con un registro existente (opcional)</Typography>
+<FormControl fullWidth><InputLabel>Tipo de relación</InputLabel><Select label="Tipo de relación" value={taskRelation} onChange={e=>{setTaskRelation(e.target.value);setTaskRelatedId(e.target.value==="Cliente"?client?.id||"":"")}}>{["Sin relación","Cliente","Visita","Cotización","Pedido"].map(t=><MenuItem key={t} value={t}>{t}</MenuItem>)}</Select></FormControl>
+{taskRelation!=="Sin relación"&&<><TextField label="Buscar por nombre, ID o dirección" value={taskRelation==="Cliente"&&taskRelatedId===client?.id?client?.name||"":""} disabled/><FormControl fullWidth><InputLabel>Seleccionar {taskRelation.toLowerCase()}</InputLabel><Select label={"Seleccionar "+taskRelation.toLowerCase()} value={taskRelatedId} onChange={e=>setTaskRelatedId(e.target.value)}>{taskRelation==="Cliente"&&client&&<MenuItem value={client.id}>{client.name} · {client.id}</MenuItem>}{taskRelation==="Visita"&&visits.map(v=><MenuItem key={v.id} value={v.id}>{v.label}</MenuItem>)}</Select></FormControl>{taskRelatedId&&<Alert severity="success">{taskRelation==="Cliente"?client?.name:visits.find(v=>v.id===taskRelatedId)?.label} · {taskRelatedId}</Alert>}<Typography variant="caption" color="text.secondary">Registros de demostración; no hay conexión con la base de datos.</Typography></>}
+<TextField required type="date" label="Fecha de vencimiento" InputLabelProps={{shrink:true}} value={taskDue} onChange={e=>setTaskDue(e.target.value)}/>
+<TextField multiline minRows={3} label="Detalle / instrucciones" value={taskDetail} onChange={e=>setTaskDetail(e.target.value)}/>
+</Stack></DialogContent><DialogActions><Button onClick={()=>setTaskOpen(false)}>Cancelar</Button><Button variant="contained" onClick={createTask}>Crear tarea</Button></DialogActions>
+</Dialog>
 <Dialog open={visitOpen} onClose={()=>setVisitOpen(false)} fullWidth maxWidth="sm">
 <DialogTitle>{activeVisit?"Cerrar visita":"Iniciar visita"}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>
 <Alert severity="info">{client?.name} · ID {client?.id}. Este flujo muestra alternativas funcionales y no registra una visita real.</Alert>
