@@ -1,6 +1,7 @@
 "use client";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
+import DiagnosticoDemo from "./DiagnosticoDemo";
 import {Alert,Box,Button,Card,CardContent,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid2 as Grid,Paper,Stack,Tab,Tabs,TextField,Typography,FormControl,InputLabel,Select,MenuItem,RadioGroup,FormControlLabel,Radio,Snackbar} from "@mui/material";
 import {Add,ArrowBack,AssignmentOutlined,CalendarMonth,CheckCircle,LocationOn,Search,Visibility,PlayArrow,StopCircle,Phone,Email,Edit,Storefront,AttachMoney,AccountCircle,AccountBalance,Event,Inventory2,LocalOffer,Work} from "@mui/icons-material";
 import {useSetBreadcrumb} from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
@@ -57,7 +58,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
 </Box>
 <Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={()=>setTaskOpen(true)}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
-</>:<Paper variant="outlined" sx={{p:3}}><Typography fontWeight={700}>Radiografía del cliente</Typography><Typography color="text.secondary">Vista de referencia. Los indicadores y expedientes reales no están conectados.</Typography></Paper>}
+</>:<DiagnosticoDemo client={client}/>}
 </>}
 <Dialog open={taskOpen} onClose={()=>setTaskOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Crear tarea desde cliente</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><Alert severity="info">Relación precargada: Cliente ID {client?.id} · {client?.name}. En este flujo permanece fija.</Alert><TextField label="Asunto" required value={taskSubject} onChange={e=>setTaskSubject(e.target.value)}/><TextField label="Vencimiento" type="date" InputLabelProps={{shrink:true}} value={taskDue} onChange={e=>setTaskDue(e.target.value)}/><TextField label="Asignado a" value="Asesor responsable (simulado)" disabled/><Typography variant="caption" color="text.secondary">La creación desde el cliente se representa aquí para evaluar el acceso; no guarda en backend ni en el módulo de Tareas.</Typography></Stack></DialogContent><DialogActions><Button onClick={()=>setTaskOpen(false)}>Cancelar</Button><Button variant="contained" onClick={()=>{if(!taskSubject.trim()||!taskDue){setNotice("Completa asunto y vencimiento.");return}setTaskOpen(false);setTaskSubject("");setTaskDue("");setNotice("Creación de tarea simulada; asociación al cliente precargada.")}}>Simular creación</Button></DialogActions></Dialog>
 <Dialog open={visitOpen} onClose={()=>setVisitOpen(false)} fullWidth maxWidth="sm">
