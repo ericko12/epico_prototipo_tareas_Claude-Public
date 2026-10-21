@@ -18,7 +18,7 @@ const luisTasks: AgendaTask[] = [
   { id: 3, subject: "Validar exhibidor POP", detail: "Registrar evidencia de implementación de material.", client: "Autopartes del Bajío", due: "2026-09-25", owner: "Luis Galvan", origin: "Manual", status: "Pendiente" },
 ];
 const luisEvents: AgendaEvent[] = [
-  { id: 1, title: "Refaccionaria El Volante", address: "Av. Demo Vallarta 1200 · Guadalajara, Jal. · DUMMY", time: "08:30", duration: 30, kind: "planned", status: "Programada", activityType: "visit" },
+  { id: 1, title: "Refaccionaria El Volante", address: "Av. Demo Vallarta 1200 · Guadalajara, Jal. · DUMMY", time: "08:30", duration: 30, kind: "planned", status: "Cancelada", activityType: "visit" },
   { id: 2, title: "Refaccionaria El Volante", address: "Av. Demo Vallarta 1200 · Guadalajara, Jal. · DUMMY", time: "09:12", duration: 34, kind: "realized", status: "Check-out realizado", planned: "08:30", activityType: "visit" },
   { id: 3, title: "Autopartes del Bajío", address: "Av. Demo México 2450 · Guadalajara, Jal. · DUMMY", time: "10:00", duration: 30, kind: "planned", status: "Programada", activityType: "visit" },
   { id: 4, title: "Frenos Lara", address: "Calz. Demo Independencia 1800 · Guadalajara, Jal. · DUMMY", time: "11:30", duration: 30, kind: "planned", status: "Programada", activityType: "visit" },
