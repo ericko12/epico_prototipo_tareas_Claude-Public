@@ -8,6 +8,9 @@ const luisClients: Client[] = [
   ["Frenos Lara", "Calz. Demo Independencia 1800 · Guadalajara, Jal. · DUMMY", 3, 2],
   ["Turbo Sur", "Av. Demo López Mateos Sur 5200 · Zapopan, Jal. · DUMMY", 2, 0],
   ["Rines MX", "Av. Demo Tonalá 800 · Tonalá, Jal. · DUMMY", 5, 2],
+  ["ANDRADE AVIÑA JESUS", "Tesistán, Zapopan, Jalisco", 4, 3],
+  ["REFACCIONARIA DEL BAJÍO", "Av. Constituyentes, Querétaro", 3, 3],
+  ["TALLER SAN JOSÉ", "Col. Centro, Guadalajara", 3, 2],
 ];
 const luisTasks: AgendaTask[] = [
   { id: 1, subject: "Enviar cotización solicitada", detail: "Confirmar disponibilidad de balatas y discos.", client: "Refaccionaria El Volante", due: "2026-09-23", owner: "Luis Galvan", origin: "Visita", status: "Pendiente" },
@@ -20,6 +23,7 @@ const luisEvents: AgendaEvent[] = [
   { id: 3, title: "Autopartes del Bajío", address: "Av. Demo México 2450 · Guadalajara, Jal. · DUMMY", time: "10:00", duration: 30, kind: "planned", status: "Programada", activityType: "visit" },
   { id: 4, title: "Frenos Lara", address: "Calz. Demo Independencia 1800 · Guadalajara, Jal. · DUMMY", time: "11:30", duration: 30, kind: "planned", status: "Programada", activityType: "visit" },
   { id: 5, title: "Frenos Lara", address: "Calz. Demo Independencia 1800 · Guadalajara, Jal. · DUMMY", time: "12:05", duration: 25, kind: "realized", status: "Check-out realizado", planned: "11:30", activityType: "visit" },
+  { id: 7, title: "Refaccionaria El Volante", address: "Av. Demo Río Nilo 2250 · Tonalá, Jal. · DUMMY", time: "17:00", duration: 30, kind: "planned", status: "Programada", activityType: "visit", createdBy: "Luis Galvan", createdAt: "21/10/2026, 4:48 p. m." },
   { id: 6, title: "Junta interna Guadalajara", address: "Sin cliente", time: "14:00", duration: 60, kind: "planned", status: "Programada", activityType: "internal" },
 ];
 
