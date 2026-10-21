@@ -52,27 +52,35 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:0,borderBottom:1,borderColor:"divider","& .MuiTab-root":{fontWeight:600}}}><Tab label="INFORMACIÓN GENERAL"/><Tab label="RADIOGRAFÍA DEL CLIENTE"/></Tabs>
 {tab===0?<>
 <Box sx={{py:3,px:{xs:1,md:1.5},borderBottom:"1px solid #e2e7ee"}}>
-<Stack direction={{xs:"column",md:"row"}} spacing={2} alignItems={{md:"start"}} justifyContent="space-between">
-<Box sx={{minWidth:230,flex:"0 1 340px"}}>
+<Stack direction={{xs:"column",md:"row"}} spacing={2} alignItems={{md:"flex-start"}} justifyContent="space-between">
+<Box sx={{minWidth:0,flex:"1 1 300px"}}>
 <Typography fontSize={20} fontWeight={700}>ID {client.id}</Typography>
 <Typography fontSize={21} fontWeight={700} sx={{mt:.4,mb:1.4}}>{client.name}</Typography>
-<Stack direction="row" alignItems="center" spacing={1}><Typography fontSize={20}>CONTACTO:</Typography><Button variant="outlined" size="small" startIcon={<AccountCircle/>} sx={{color:"#172a4b",textTransform:"none",whiteSpace:"nowrap"}}>1 - {client.name} ▾</Button></Stack>
+<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap><Typography fontSize={20}>CONTACTO:</Typography><Button variant="outlined" size="small" startIcon={<AccountCircle/>} sx={{color:"#172a4b",textTransform:"none",maxWidth:"100%"}}>1 - {client.name} ▾</Button></Stack>
 </Box>
-<Box sx={{flex:1,minWidth:250}}>
-<Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent={{md:"flex-end"}} sx={{mb:1.5}}>
-<Button variant="outlined" size="small" startIcon={<Phone/>} sx={{textTransform:"none",whiteSpace:"nowrap"}}>{client.phone}　⌄</Button>
-<Button variant="outlined" size="small" startIcon={<Email/>} sx={{textTransform:"none"}}>{client.email}　⌄</Button>
+<Stack direction={{xs:"column",sm:"row"}} spacing={1} alignItems={{sm:"center"}} flexWrap="wrap" useFlexGap justifyContent={{md:"flex-end"}} sx={{minWidth:0,flex:"1 1 350px"}}>
+<Button variant="outlined" size="small" startIcon={<Phone/>} sx={{textTransform:"none",maxWidth:"100%",overflowWrap:"anywhere"}}>{client.phone}　⌄</Button>
+<Button variant="outlined" size="small" startIcon={<Email/>} sx={{textTransform:"none",maxWidth:"100%",overflowWrap:"anywhere"}}>{client.email}　⌄</Button>
+<Button size="small" endIcon={<Edit/>} sx={{color:"#161616",textTransform:"none",whiteSpace:"nowrap"}}>Editar</Button>
 </Stack>
-<Stack direction="row" justifyContent={{md:"flex-end"}} flexWrap="wrap" gap={1}>
-<Button size="small" endIcon={<Edit/>} sx={{color:"#161616",textTransform:"none"}}>Editar</Button>
+</Stack>
+<Box sx={{mt:2,pt:2,borderTop:"1px solid #e2e7ee",display:{xs:"none",md:"flex"},justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:2}}>
+<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
 <Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none",whiteSpace:"nowrap"}}>Carga Masiva</Button>
 <Button variant="contained" size="small" sx={{textTransform:"none",whiteSpace:"nowrap"}}>Búsqueda de producto</Button>
 </Stack>
-</Box>
-</Stack>
-<Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent="center" alignItems="center" sx={{mt:1.5,py:.5}}>
+<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ml:"auto"}}>
 <Button variant="outlined" startIcon={<AssignmentOutlined/>} onClick={openTask}>Crear tarea</Button>
 {!currentVisit?<Button variant="contained" startIcon={<PlayArrow/>} onClick={openVisit}>Iniciar visita</Button>:<Button variant="contained" color="warning" startIcon={<StopCircle/>} onClick={openVisit}>Continuar visita</Button>}
+</Stack>
+</Box>
+<Stack direction={{xs:"column",sm:"row"}} spacing={1} justifyContent="center" alignItems="center" sx={{display:{xs:"flex",md:"none"},mt:1.5,py:.5}}>
+<Button variant="outlined" startIcon={<AssignmentOutlined/>} onClick={openTask}>Crear tarea</Button>
+{!currentVisit?<Button variant="contained" startIcon={<PlayArrow/>} onClick={openVisit}>Iniciar visita</Button>:<Button variant="contained" color="warning" startIcon={<StopCircle/>} onClick={openVisit}>Continuar visita</Button>}
+</Stack>
+<Stack direction="row" justifyContent="center" flexWrap="wrap" gap={1} sx={{display:{xs:"flex",md:"none"},mt:1}}>
+<Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none"}}>Carga Masiva</Button>
+<Button variant="contained" size="small" sx={{textTransform:"none"}}>Búsqueda de producto</Button>
 </Stack>
 </Box>
 <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))",md:"repeat(5,minmax(0,1fr))"},gap:2,mt:3,mb:3}}>
