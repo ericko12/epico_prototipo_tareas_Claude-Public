@@ -14,6 +14,7 @@ import { MobileSubmenu } from "@/features/layoutMain/infrastructure/ui/MobileSub
 import { BreadcrumbProvider } from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
 import { DRAWER } from "@/features/layoutMain/infrastructure/ui/drawer";
 import ApymsaIcon from "@/features/layoutMain/infrastructure/ui/ApymsaIcon";
+import { AgendaProvider } from "@/features/agenda/application/AgendaContext";
 
 const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -25,6 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <BreadcrumbProvider>
+      <AgendaProvider>
       <Box sx={{ display: "flex" }}>
         <NavBarContent isDrawerOpen={open} toggleDrawer={() => setOpen((p) => !p)} isMobile={isMobile} />
         <Drawer
@@ -86,6 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </Box>
       </Box>
       <MobileSubmenu />
+      </AgendaProvider>
     </BreadcrumbProvider>
   );
 }
