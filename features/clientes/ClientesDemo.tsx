@@ -2,17 +2,20 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import DiagnosticoDemo from "./DiagnosticoDemo";
+import ClientList,{type ClientListItem} from "./ClientList";
 import {useAgenda} from "@/features/agenda/application/AgendaContext";
 import {EventDetailDialog,EventFormDialog,CancelEventDialog} from "@/features/agenda/infrastructure/ui/AgendaDialogs";
 import {Alert,Box,Button,Card,CardContent,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid2 as Grid,Paper,Stack,Tab,Tabs,TextField,Typography,FormControl,InputLabel,Select,MenuItem,RadioGroup,FormControlLabel,Radio,Snackbar} from "@mui/material";
 import {Add,ArrowBack,AssignmentOutlined,CalendarMonth,CheckCircle,LocationOn,Search,Visibility,PlayArrow,StopCircle,Phone,Email,Edit,Storefront,AttachMoney,AccountCircle,AccountBalance,Event,Inventory2,LocalOffer,Work} from "@mui/icons-material";
 import {useSetBreadcrumb} from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
-type Client={id:string;name:string;rfc:string;phone:string;email:string;branch:string;seller:string;region:string;division:string;segment:string;address:string};
+type Client=ClientListItem;
 const clients:Client[]=[
-{id:"131",name:"ANDRADE AVIÑA JESUS",rfc:"AAAJ6109236C7",phone:"333314502303",email:"jesusandradejaa23@hotmail.com",branch:"Tesistan",seller:"ALEMAN PADILLA MIGUEL AN...",region:"Política Comercial 2022",division:"Refaccionaria",segment:"Menudeo",address:"Tesistán, Zapopan, Jalisco"},
-{id:"207",name:"REFACCIONARIA DEL BAJÍO",rfc:"RBA090525XXX",phone:"4422221100",email:"contacto@ejemplo.com",branch:"Querétaro",seller:"LUIS GALVÁN",region:"Centro",division:"Refaccionaria",segment:"Mayoreo",address:"Av. Constituyentes, Querétaro"},
-{id:"315",name:"TALLER SAN JOSÉ",rfc:"TSJ100201XXX",phone:"3331234567",email:"taller@ejemplo.com",branch:"Guadalajara",seller:"YURIDIA TORRES",region:"Occidente",division:"Taller",segment:"Menudeo",address:"Col. Centro, Guadalajara"},
-{id:"CLI-1001",name:"Refaccionaria El Volante",rfc:"REV010101XXX",phone:"3330000000",email:"demo@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Refaccionaria",segment:"Menudeo",address:"Av. Demo Río Nilo 2250 · Tonalá, Jal. · DUMMY"}];
+{id:"131",name:"ANDRADE AVIÑA JESUS",rfc:"AAAJ6109236C7",phone:"3314502303",email:"jesusandradejaa23@hotmail.com",branch:"Tesistan",seller:"ALEMAN PADILLA MIGUEL AN...",region:"Política Comercial 2022",division:"Refaccionaria",segment:"Menudeo",address:"Tesistán, Zapopan, Jalisco",bankReference:"8611082",sellerId:"35",registeredAt:"2013-12-19",subClassification:"Taller Institucional",scenario:"Cliente de referencia"},
+{id:"207",name:"REFACCIONARIA DEL BAJÍO",rfc:"RBA090525XXX",phone:"4422221100",email:"contacto@ejemplo.com",branch:"Querétaro",seller:"LUIS GALVÁN",region:"Centro",division:"Refaccionaria",segment:"Mayoreo",address:"Av. Constituyentes, Querétaro",bankReference:"207001",sellerId:"42",registeredAt:"2020-05-25",subClassification:"Mayoreo",scenario:"Refaccionaria"},
+{id:"315",name:"TALLER SAN JOSÉ",rfc:"TSJ100201XXX",phone:"3331234567",email:"taller@ejemplo.com",branch:"Guadalajara",seller:"YURIDIA TORRES",region:"Occidente",division:"Taller",segment:"Menudeo",address:"Col. Centro, Guadalajara",bankReference:"315001",sellerId:"53",registeredAt:"2021-02-01",subClassification:"Taller general",scenario:"Taller"},
+{id:"CLI-1001",name:"Refaccionaria El Volante",rfc:"REV010101XXX",phone:"3330000000",email:"demo@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Refaccionaria",segment:"Menudeo",address:"Av. Demo Río Nilo 2250 · Tonalá, Jal. · DUMMY",bankReference:"1001001",sellerId:"42",registeredAt:"2022-01-10",subClassification:"Menudeo",scenario:"Visitas y tareas"},
+{id:"418",name:"MOTO REFACCIONES DEL CENTRO",rfc:"MRC200101XXX",phone:"3330000418",email:"moto@ejemplo.com",branch:"Guadalajara",seller:"LUIS GALVÁN",region:"Occidente",division:"Moto partes",segment:"Menudeo",address:"Av. Demo Motociclistas 418 · Guadalajara, Jal. · DUMMY",bankReference:"418001",sellerId:"42",registeredAt:"2023-03-15",subClassification:"Moto partes",scenario:"Moto partes"},
+{id:"529",name:"TRANSPORTES DEMO OCCIDENTE",rfc:"TDO200101XXX",phone:"3330000529",email:"empresa@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Empresas",segment:"Flotilla",address:"Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY",bankReference:"529001",sellerId:"42",registeredAt:"2024-06-20",subClassification:"Flotilla",scenario:"Empresa · diagnóstico por Dirección"}];
 export default function ClientesDemo(){
 const router=useRouter();
 const agenda=useAgenda();
@@ -31,7 +34,7 @@ const openVisit=()=>{
 };
 const taskTypes=["Seguimiento comercial","Enviar documentación","Llamada a cliente","Validación de información","Actividad interna"];
 const closeRules:Record<string,{comment:boolean;evidence:boolean}>={"Seguimiento comercial":{comment:true,evidence:false},"Enviar documentación":{comment:false,evidence:true},"Llamada a cliente":{comment:false,evidence:false},"Validación de información":{comment:true,evidence:true},"Actividad interna":{comment:false,evidence:false}};
-const [detail,setDetail]=useState<Client|null>(null),[search,setSearch]=useState(""),[tab,setTab]=useState(0),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
+const [detail,setDetail]=useState<Client|null>(null),[tab,setTab]=useState(0),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
 useSetBreadcrumb(detail?["Clientes","Listado de clientes","Detalle"]:["Clientes","Listado de clientes"]);
 const [taskType,setTaskType]=useState(taskTypes[0]),[taskDetail,setTaskDetail]=useState(""),[taskRelation,setTaskRelation]=useState("Cliente"),[taskRelatedId,setTaskRelatedId]=useState(""),[taskAssigned,setTaskAssigned]=useState("Luis Galván"),[taskRelationQuery,setTaskRelationQuery]=useState("");
 const client=detail;
@@ -40,15 +43,10 @@ const createTask=()=>{if(!taskSubject.trim()||!taskType||!taskAssigned||!taskDue
 const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.activityType==="visit").map(e=>({id:String(e.id),label:`Visita · ${e.date??"Hoy"}, ${e.time}`})):[];
 const currentVisit=client?agenda.profiles.luis.events.find(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.status==="Check-in activo"):undefined;
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
-<Alert severity="info" sx={{mb:2}}><b>SIMULADOR DE CLIENTES.</b> Réplica visual de referencia, datos ficticios; no modifica Épico. Las visitas y tareas son escenarios para validar con negocio.</Alert>
-{!client?<><Typography variant="h5" fontWeight={700} sx={{mb:2}}>Listado de clientes</Typography>
-<Paper variant="outlined" sx={{p:2,mb:2}}><Stack direction={{xs:"column",sm:"row"}} spacing={2}>
-<TextField fullWidth size="small" label="Buscar por ID, nombre, RFC, vendedor o dirección" value={search} onChange={e=>setSearch(e.target.value)} InputProps={{startAdornment:<Search sx={{mr:1}}/>}}/>
-<Button variant="outlined" onClick={()=>setSearch("131")}>Buscar ID 131</Button></Stack></Paper>
-<Stack spacing={1.5}>{clients.filter(c=>[c.id,c.name,c.rfc,c.branch,c.seller,c.address].join(" ").toLowerCase().includes(search.toLowerCase())).map(c=><Card key={c.id} variant="outlined"><CardContent><Stack direction={{xs:"column",sm:"row"}} justifyContent="space-between" alignItems={{sm:"center"}} spacing={2}><Box><Typography color="primary" fontWeight={700}>ID {c.id} · {c.name}</Typography><Typography variant="body2" color="text.secondary">{c.branch} · {c.address}</Typography><Typography variant="body2">Vendedor: {c.seller}</Typography></Box><Button variant="contained" startIcon={<Visibility/>} onClick={()=>{setDetail(c);setTab(0);agenda.setDetail({event:null})}}>Ver detalle</Button></Stack></CardContent></Card>)}</Stack>
-</>:<>
+<Box sx={{display:client?"none":"block"}}><ClientList clients={clients} onOpen={selected=>{setDetail(selected);setTab(0);agenda.setDetail({event:null})}}/></Box>
+{client&&<>
 <Button startIcon={<ArrowBack/>} onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{mb:2}}>Listado de clientes</Button>
-<Box sx={{mb:2,minHeight:145,p:2,border:"1px solid #e2e7ee",borderRadius:1}}><Button variant="outlined" sx={{width:280,minHeight:83,fontWeight:500}}>NUEVA CAJA　＋</Button></Box>
+<Box sx={{mb:3}}><Button variant="outlined" onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{width:220,minHeight:64,fontWeight:500,boxShadow:"0 2px 5px rgba(17,48,95,.10)"}}>NUEVA CAJA　＋</Button></Box>
 <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:0,borderBottom:1,borderColor:"divider","& .MuiTab-root":{fontWeight:600}}}><Tab label="INFORMACIÓN GENERAL"/><Tab label="RADIOGRAFÍA DEL CLIENTE"/></Tabs>
 {tab===0?<>
 <Box sx={{py:3,px:{xs:1,md:1.5},borderBottom:"1px solid #e2e7ee"}}>
@@ -84,7 +82,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </Stack>
 </Box>
 <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))",md:"repeat(5,minmax(0,1fr))"},gap:2,mt:3,mb:3}}>
-{[["RFC",client.rfc,<AccountBalance key="rfc"/>],["FECHA DE ALTA","19 diciembre 2013",<CalendarMonth key="fecha"/>],["SUCURSAL ASIGNADA",client.branch,<Storefront key="suc"/>],["DIVISIÓN",client.division,<Storefront key="div"/>],["SEGMENTO",client.segment,<LocalOffer key="seg"/>],["ÚLTIMO PEDIDO","$166.18",<AttachMoney key="ped"/>],["PRONTO PAGO","10% Nota de Crédito",<AttachMoney key="pronto"/>],["VENDEDOR ASIGNADO",client.seller,<AccountCircle key="vend"/>],["REGIÓN",client.region,<LocationOn key="reg"/>],["LISTA DE PRECIOS","Distribuidor",<AttachMoney key="pre"/>],["LISTA P. PERSONALIZADA","No",<AttachMoney key="pers"/>],["LISTA NEGRA SMC","No",<AttachMoney key="neg"/>],["PORTAFOLIO","NO",<Work key="port"/>]].map(([k,v,ico])=><Paper key={String(k)} variant="outlined" sx={{px:1.8,py:1.3,minHeight:82,borderRadius:2,boxShadow:"0 2px 5px rgba(17,48,95,.08)",borderColor:"#d8e2f0"}}>
+{[["RFC",client.rfc,<AccountBalance key="rfc"/>],["FECHA DE ALTA",new Date(client.registeredAt+"T12:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"}),<CalendarMonth key="fecha"/>],["SUCURSAL ASIGNADA",client.branch,<Storefront key="suc"/>],["DIVISIÓN",client.division,<Storefront key="div"/>],["SEGMENTO",client.segment,<LocalOffer key="seg"/>],["ÚLTIMO PEDIDO","$166.18",<AttachMoney key="ped"/>],["PRONTO PAGO","10% Nota de Crédito",<AttachMoney key="pronto"/>],["VENDEDOR ASIGNADO",client.seller,<AccountCircle key="vend"/>],["REGIÓN",client.region,<LocationOn key="reg"/>],["LISTA DE PRECIOS","Distribuidor",<AttachMoney key="pre"/>],["LISTA P. PERSONALIZADA","No",<AttachMoney key="pers"/>],["LISTA NEGRA SMC","No",<AttachMoney key="neg"/>],["PORTAFOLIO","NO",<Work key="port"/>]].map(([k,v,ico])=><Paper key={String(k)} variant="outlined" sx={{px:1.8,py:1.3,minHeight:82,borderRadius:2,boxShadow:"0 2px 5px rgba(17,48,95,.08)",borderColor:"#d8e2f0"}}>
 <Stack direction="row" spacing={1} alignItems="center"><Box sx={{"& svg":{fontSize:19},color:"#222"}}>{ico}</Box><Typography fontWeight={700} fontSize={14} noWrap>{k}</Typography></Stack>
 <Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
 </Box>
