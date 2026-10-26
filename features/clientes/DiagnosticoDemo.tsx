@@ -1,5 +1,6 @@
 "use client";
-import {useState} from "react";
+import {useEffect,useRef,useState} from "react";
+import {useAgenda} from "@/features/agenda/application/AgendaContext";
 import {Alert,Box,Button,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,FormControl,Grid2 as Grid,IconButton,InputLabel,MenuItem,Paper,Select,Stack,Tab,Tabs,TextField,Typography,Accordion,AccordionSummary,AccordionDetails,Snackbar} from "@mui/material";
 import {ArrowBack,ArrowForward,Assessment,CalendarMonth,Close,Edit,ExpandMore,History,LocalOffer,Person,Phone,Email,Search,Storefront,TrendingUp,AccountBalance,Visibility,Save} from "@mui/icons-material";
 type Client={id:string;name:string;rfc:string;phone:string;email:string;branch:string;seller:string;region:string;division:string;segment:string;address:string};
@@ -8,6 +9,21 @@ const initial:Diagnosis={status:"Activo",situation:"Competitividad de precios",r
 const panel={p:2,border:"1px solid #dce5ef",borderRadius:2};
 function Datum({label,value}:{label:string,value:string}){return <Box sx={{p:1.5,bgcolor:"#f1f8fe",borderRadius:1,minHeight:70}}><Typography fontSize={12} color="text.secondary">{label}</Typography><Typography fontSize={14} fontWeight={600}>{value}</Typography></Box>}
 export default function DiagnosticoDemo({client}:{client:Client}){
+const {role:activeRole}=useAgenda();
+const diagnosisFrame=useRef<HTMLIFrameElement>(null);
+const [diagnosisHeight,setDiagnosisHeight]=useState(640);
+const diagnosisRole=({advisor:"Asesor",manager:"Gerente",support:"Administrador",consult:"Consulta"} as const)[activeRole];
+const diagnosisSegment=client.division.toLocaleLowerCase("es").includes("taller")?"Talleres":client.division.toLocaleLowerCase("es").includes("moto")?"Moto part":client.division.toLocaleLowerCase("es").includes("empresa")?"empresas":"Refa";
+const diagnosisParams=new URLSearchParams({embedded:"1",clientId:client.id,role:diagnosisRole,segment:diagnosisSegment});
+useEffect(()=>{
+ const onFrameMessage=(event:MessageEvent)=>{
+  if(event.origin!==window.location.origin||event.source!==diagnosisFrame.current?.contentWindow||event.data?.type!=="epico:diagnosis-height")return;
+  const height=event.data.height;
+  if(typeof height==="number"&&Number.isFinite(height)&&height>0)setDiagnosisHeight(Math.ceil(height));
+ };
+ window.addEventListener("message",onFrameMessage);
+ return()=>window.removeEventListener("message",onFrameMessage);
+},[]);
 const [screen,setScreen]=useState<"radiografia"|"diagnostico"|"credito">("radiografia"),[role,setRole]=useState("Asesor"),[editing,setEditing]=useState(false),[data,setData]=useState<Diagnosis>(initial),[draft,setDraft]=useState<Diagnosis>(initial),[history,setHistory]=useState([{who:"Sistema (demostración)",date:"13/10/2026",detail:"Diagnóstico de ejemplo cargado para revisión"}]),[contactOpen,setContactOpen]=useState(false),[selectedContact,setSelectedContact]=useState("1"),[contactName,setContactName]=useState(client.name),[contactPhone,setContactPhone]=useState(client.phone),[contactEmail,setContactEmail]=useState(client.email),[notice,setNotice]=useState(""),[creditSearch,setCreditSearch]=useState("");
 const update=(key:keyof Diagnosis,value:string)=>setDraft(p=>({...p,[key]:value}));
 const start=()=>{setDraft({...data});setEditing(true)};
@@ -25,7 +41,7 @@ return <Box sx={{pb:4}}>
 <Paper variant="outlined" sx={{...panel,mb:2}}><Typography fontWeight={700} sx={{mb:2}}>Crédito</Typography><Grid container spacing={1}>{rows.map(([k,v])=><Grid size={{xs:12,sm:6,md:3}} key={k}><Datum label={k} value={v}/></Grid>)}</Grid><Button endIcon={<ArrowForward/>} sx={{mt:2}} onClick={()=>setScreen("credito")}>IR AL DESGLOSE DE CRÉDITO</Button></Paper>
 <Paper variant="outlined" sx={panel}><Typography fontWeight={700} sx={{mb:2}}>PRODUCTOS DEJADOS DE COMPRAR</Typography><Box sx={{overflowX:"auto"}}><Box component="table" sx={{width:"100%",borderCollapse:"collapse",fontSize:13,"& td,& th":{p:1,borderBottom:"1px solid #e6ebf2",textAlign:"left"}}}><thead><tr>{["CÓDIGO","DESCRIPCIÓN","CANTIDAD","FECHA ÚLTIMA COMPRA","PEDIDO"].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{[["3284312","REGULADOR VOLTAJE ALTERNADOR MITSUBISHI","1","03/01/2024","678114"],["6343130","LENTES DE SEGURIDAD DE POLICARBONATO","1","05/01/2024","678283"]].map((row,i)=><tr key={i}>{row.map((x,j)=><td key={j}>{x}</td>)}</tr>)}</tbody></Box></Box><Typography fontSize={12} color="text.secondary" sx={{mt:1}}>Datos de demostración, no conectados a Épico.</Typography></Paper>
 </>:screen==="credito"?<Paper variant="outlined" sx={panel}><Typography variant="h6" fontWeight={700}>Desglose de crédito</Typography><Typography color="text.secondary" fontSize={13}>Vista interactiva de referencia; filtros y facturas simulados.</Typography><TextField size="small" label="Buscar factura" value={creditSearch} onChange={e=>setCreditSearch(e.target.value)} sx={{my:2}}/><Box sx={{overflowX:"auto"}}><Box component="table" sx={{width:"100%",borderCollapse:"collapse","& td,& th":{p:1.5,borderBottom:"1px solid #e2e9f3",textAlign:"left"}}}><thead><tr>{["Factura","Fecha","Importe","Estado"].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{invoices.filter(r=>r.join(" ").toLowerCase().includes(creditSearch.toLowerCase())).map(r=><tr key={r[0]}>{r.map((c,i)=><td key={i}>{c}</td>)}</tr>)}</tbody></Box></Box></Paper>:<>
-<Box><Typography variant="h5" fontWeight={700} sx={{mb:1}}>Diagnóstico comercial por segmento</Typography><Alert severity="info" sx={{mb:2}}>Formularios y catálogos del archivo aprobado. Clasificación y nivel comercial pendientes de fórmula; datos simulados.</Alert><Box component="iframe" title="Diagnóstico comercial por segmento" src={(process.env.NEXT_PUBLIC_BASE_PATH||"")+"/diagnostico-segmentos.html"} sx={{width:"100%",height:{xs:"calc(100vh - 220px)",md:"1100px"},border:"1px solid #dae4ee",borderRadius:2,background:"#fff"}}/></Box></>}
+<Box sx={{minWidth:0}}><Typography variant="h5" fontWeight={700} sx={{mb:2}}>Diagnóstico comercial por segmento</Typography><Box component="iframe" ref={diagnosisFrame} key={client.id} title="Diagnóstico comercial por segmento" src={(process.env.NEXT_PUBLIC_BASE_PATH||"")+"/diagnostico-segmentos.html?"+diagnosisParams.toString()} sx={{display:"block",width:"100%",height:diagnosisHeight,border:0,background:"transparent"}}/></Box></>}
 <Dialog open={contactOpen} onClose={()=>setContactOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Editar contacto</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><TextField label="Nombre" value={contactName} onChange={e=>setContactName(e.target.value)}/><TextField label="Teléfono" value={contactPhone} onChange={e=>setContactPhone(e.target.value)}/><TextField label="Correo electrónico" value={contactEmail} onChange={e=>setContactEmail(e.target.value)}/><Typography variant="caption">Los cambios sólo afectan este simulador.</Typography></Stack></DialogContent><DialogActions><Button onClick={()=>setContactOpen(false)}>Cancelar</Button><Button variant="contained" onClick={()=>{setContactOpen(false);setNotice("Contacto actualizado en simulación.")}}>Guardar</Button></DialogActions></Dialog>
 <Snackbar open={!!notice} autoHideDuration={4000} onClose={()=>setNotice("")} message={notice}/>
 </Box>
