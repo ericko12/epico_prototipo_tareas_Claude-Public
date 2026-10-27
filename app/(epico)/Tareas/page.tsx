@@ -20,7 +20,7 @@ export default function TareasPage(){
  if(from&&x.due.slice(0,10)<from||to&&x.due.slice(0,10)>to)return false;
  const hay=searchBy==='Tarea'?x.subject+' '+x.id:searchBy==='Cliente'?x.link?.client:searchBy==='ID de cliente'?x.link?.clientId:x.link?.address;
  return !query||normalize(hay||'').includes(normalize(query));
- }).sort((a,b)=>Number(!overdue(a,now))-Number(!overdue(b,now))||a.due.localeCompare(b.due)),[data.tasks,role,actor,tab,type,owner,client,from,to,query,searchBy,now]);
+ }).sort((a,b)=>(overdue(a,now)?0:isOpen(a)?1:2)-(overdue(b,now)?0:isOpen(b)?1:2)||a.due.localeCompare(b.due)),[data.tasks,role,actor,tab,type,owner,client,from,to,query,searchBy,now]);
  const run=(fn:()=>void)=>{try{if(!navigator.onLine)throw Error('Necesitas conexión para confirmar cambios. Conserva tu captura y reintenta.');fn();}catch(e){setNotice((e as Error).message);}};
  const open=(x:Task)=>{setSelected(x.id);setEdit({...x});setReason('');setAction(null);};
  const update=(changes:Partial<Task>,event:string)=>{if(!t)return;c.commit(d=>({...d,tasks:d.tasks.map(x=>x.id===t.id?{...x,...changes,history:[...x.history,`${event} · ${actor} · ${new Date().toLocaleString('es-MX')}`]}:x)}));};
