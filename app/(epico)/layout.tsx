@@ -16,6 +16,8 @@ import { DRAWER } from "@/features/layoutMain/infrastructure/ui/drawer";
 import ApymsaIcon from "@/features/layoutMain/infrastructure/ui/ApymsaIcon";
 import { AgendaProvider } from "@/features/agenda/application/AgendaContext";
 
+import { TaskProvider } from "@/features/tareas/TaskContext";
+
 const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -26,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <BreadcrumbProvider>
-      <AgendaProvider>
+      <AgendaProvider><TaskProvider>
       <Box sx={{ display: "flex" }}>
         <NavBarContent isDrawerOpen={open} toggleDrawer={() => setOpen((p) => !p)} isMobile={isMobile} />
         <Drawer
@@ -88,7 +90,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </Box>
       </Box>
       <MobileSubmenu />
-      </AgendaProvider>
+      </TaskProvider></AgendaProvider>
     </BreadcrumbProvider>
   );
 }

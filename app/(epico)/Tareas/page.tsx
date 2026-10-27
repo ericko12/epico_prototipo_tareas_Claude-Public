@@ -1,174 +1,82 @@
-"use client";
-import { useMemo, useState } from "react";
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Snackbar, Stack, Tab, Tabs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { Add, AssignmentTurnedIn, CheckCircleOutline, EditOutlined, Replay, Search, VisibilityOutlined, Tune, RadioButtonUnchecked } from "@mui/icons-material";
-import { useSetBreadcrumb } from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
-
-type Status = "Pendiente" | "Completada";
-type Task = {relatedType?:string; relatedId?:string; clientId?:string; address?:string; id:number; subject:string; type:string; assigned:string; related:string; due:string; status:Status; detail:string; evidence:string; source:"Manual"|"Automática"; history:string[]; closure?:{comment:boolean;evidence:boolean};reopenReason?:string };
-const USERS=["Luis Galván","Yuridia Torres","Asesor comercial","Gerente regional"];
-const TYPES=["Seguimiento comercial","Enviar documentación","Llamada a cliente","Validación de información","Actividad interna"];
-const CLOSE_RULES:Record<string,{comment:boolean;evidence:boolean}>={"Seguimiento comercial":{comment:true,evidence:false},"Enviar documentación":{comment:false,evidence:true},"Llamada a cliente":{comment:false,evidence:false},"Validación de información":{comment:true,evidence:true},"Actividad interna":{comment:false,evidence:false}};
-type Role="Asesor"|"Gerente regional"|"Gerente territorial"|"Gerente nacional";
-const HIERARCHY:Record<Role,string[]>={"Asesor":["Luis Galván"],"Gerente regional":["Gerente regional","Luis Galván","Yuridia Torres","Asesor comercial"],"Gerente territorial":["Gerente territorial","Gerente regional","Luis Galván","Yuridia Torres","Asesor comercial"],"Gerente nacional":["Gerente nacional","Gerente territorial","Gerente regional","Luis Galván","Yuridia Torres","Asesor comercial"]};
-const today=new Date().toISOString().slice(0,10);
-const days=(d:number)=>{const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)};
-const sample:Task[]=[
-{id:1001,subject:"Enviar cotización actualizada",type:"Seguimiento comercial",assigned:"Luis Galván",related:"Refaccionaria del Bajío",due:days(-2),status:"Pendiente",detail:"Contactar al cliente y confirmar recepción.",evidence:"",source:"Manual",history:["Creada manualmente · demostración"]},
-{id:1002,subject:"Solicitar evidencia de entrega",type:"Enviar documentación",assigned:"Yuridia Torres",related:"Taller San José",due:today,status:"Pendiente",detail:"Adjuntar comprobante recibido.",evidence:"",source:"Automática",history:["Generada por proceso simulado"]},
-{id:1003,subject:"Contactar cliente por seguimiento",type:"Llamada a cliente",assigned:"Luis Galván",related:"Distribuidora Norte",due:days(2),status:"Pendiente",detail:"Dar seguimiento a la solicitud comercial.",evidence:"",source:"Manual",history:["Creada manualmente · demostración"]},
-{id:1004,subject:"Revisar cartera semanal",type:"Actividad interna",assigned:"Luis Galván",related:"",due:days(-1),status:"Completada",detail:"Consolidar pendientes de la semana.",evidence:"Reporte semanal (simulado)",source:"Manual",history:["Creada manualmente","Completada · demostración"]}
-];
-type RecordOption={kind:"Cliente"|"Visita"|"Cotización"|"Pedido";id:string;name:string;clientId:string;address:string;date?:string;status?:string};
-const RECORDS:RecordOption[]=[
-{kind:"Cliente",id:"C-1024",name:"Refaccionaria del Bajío",clientId:"C-1024",address:"Av. Constituyentes 120, Querétaro"},
-{kind:"Cliente",id:"C-2038",name:"Taller San José",clientId:"C-2038",address:"Calle Reforma 28, Querétaro"},
-{kind:"Cliente",id:"C-3015",name:"Distribuidora Norte",clientId:"C-3015",address:"Av. Universidad 700, Querétaro"},
-{kind:"Visita",id:"VIS-410",name:"Visita a Refaccionaria del Bajío",clientId:"C-1024",address:"Av. Constituyentes 120, Querétaro",date:days(1),status:"Programada"},
-{kind:"Visita",id:"VIS-411",name:"Visita a Taller San José",clientId:"C-2038",address:"Calle Reforma 28, Querétaro",date:days(3),status:"Programada"},
-{kind:"Visita",id:"VIS-412",name:"Seguimiento Distribuidora Norte",clientId:"C-3015",address:"Av. Universidad 700, Querétaro",date:days(-3),status:"Realizada"},
-{kind:"Cotización",id:"COT-854",name:"Cotización Refaccionaria del Bajío",clientId:"C-1024",address:"Av. Constituyentes 120, Querétaro"},
-{kind:"Pedido",id:"PED-741",name:"Pedido Taller San José",clientId:"C-2038",address:"Calle Reforma 28, Querétaro"}];
-const blank={subject:"",type:TYPES[0],assigned:USERS[0],related:"",due:today,detail:""};
+'use client';
+import {useMemo,useState} from 'react';
+import {Alert,Autocomplete,Box,Button,Checkbox,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,FormControlLabel,MenuItem,Paper,Snackbar,Stack,Tab,Tabs,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,TextField,Typography} from '@mui/material';
+import {Add,VisibilityOutlined} from '@mui/icons-material';
+import {useSetBreadcrumb} from '@/features/layoutMain/infrastructure/ui/BreadcrumbContext';
+import {useTasks} from '@/features/tareas/TaskContext';
+import {Attachments,TaskComposer} from '@/features/tareas/TaskComposer';
+import {allowedFor,canManage,canSee,CLIENTS,generate,isOpen,managers,overdue,ROLES,Role,SELLERS,Series,Task,uid,validateForm} from '@/features/tareas/model';
+const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export default function TareasPage(){
-  useSetBreadcrumb(["Seguimiento comercial","Mis Tareas"]);
-  const theme=useTheme(),mobile=useMediaQuery(theme.breakpoints.down("sm"));
-  const [tasks,setTasks]=useState<Task[]>(sample);
-  const [role,setRole]=useState<Role>("Asesor"),[reopenReason,setReopenReason]=useState(""),[reassignTo,setReassignTo]=useState("");
-  const actor=role==="Asesor"?"Luis Galván":role, isManager=role!=="Asesor", allowed=HIERARCHY[role];
-  const isOwner=(t:Task)=>t.assigned===actor;
-  const canSee=(t:Task)=>isOwner(t)||(isManager&&allowed.includes(t.assigned));
-  const closeRule=(t:Task)=>t.closure||CLOSE_RULES[t.type]||{comment:false,evidence:false};
-  const [tab,setTab]=useState("Todas"),[query,setQuery]=useState(""),[searchBy,setSearchBy]=useState("Tarea"),[typeFilter,setTypeFilter]=useState("Todos"),[userFilter,setUserFilter]=useState("Todos"),[dateFrom,setDateFrom]=useState(""),[dateTo,setDateTo]=useState("");
-  const [relationKind,setRelationKind]=useState("Sin relación"),[relationQuery,setRelationQuery]=useState(""),[relationId,setRelationId]=useState("");
-  const [showAllVisits,setShowAllVisits]=useState(false);
-  const relationOptions=RECORDS.filter(r=>(relationKind===r.kind)&&((r.kind!=="Visita"||showAllVisits||r.date!>=today))&&(!relationQuery||[r.name,r.id,r.clientId,r.address,r.date||""].join(" ").toLowerCase().includes(relationQuery.toLowerCase())));
-  const [mobileFilters,setMobileFilters]=useState(false);
-  const [form,setForm]=useState(blank),[createOpen,setCreateOpen]=useState(false),[selected,setSelected]=useState<number|null>(null),[comment,setComment]=useState(""),[evidence,setEvidence]=useState(""),[notice,setNotice]=useState("");
-  const selectedTask=tasks.find(t=>t.id===selected);
-  const isOverdue=(t:Task)=>t.status==="Pendiente"&&t.due<today;
-  const visible=useMemo(()=>tasks.filter(t=>{
-    const matchState=tab==="Todas"||(tab==="Pendientes"&&t.status==="Pendiente"&&!isOverdue(t))||(tab==="Vencidas"&&isOverdue(t))||(tab==="Completadas"&&t.status==="Completada");
-    const q=query.toLowerCase().trim();
-    const record=RECORDS.find(r=>r.id===t.relatedId);
-    const searchable=searchBy==="Tarea"?[t.subject,String(t.id)]:searchBy==="Cliente"?[t.related,record?.name||""]:searchBy==="ID de cliente"?[t.clientId||record?.clientId||""]: [t.address||record?.address||""];
-    return canSee(t)&&matchState&&(typeFilter==="Todos"||t.type===typeFilter)&&(userFilter==="Todos"||t.assigned===userFilter)&&(!dateFrom||t.due>=dateFrom)&&(!dateTo||t.due<=dateTo)&&(!q||searchable.join(" ").toLowerCase().includes(q));
-  }).sort((a,b)=>a.due.localeCompare(b.due)),[tasks,tab,query,searchBy,typeFilter,userFilter,dateFrom,dateTo,role]);
-  const counts={pending:tasks.filter(t=>canSee(t)&&t.status==="Pendiente"&&!isOverdue(t)).length,overdue:tasks.filter(t=>canSee(t)&&isOverdue(t)).length,done:tasks.filter(t=>canSee(t)&&t.status==="Completada").length};
-  const change=(patch:Partial<Task>)=>setTasks(old=>old.map(t=>t.id===selected?{...t,...patch}:t));
-  const create=()=>{
-    if(!form.subject.trim()||!form.assigned||!form.type||!form.due){setNotice("Completa asunto, tipo, responsable y vencimiento.");return}
-    const linked=RECORDS.find(r=>r.id===relationId&&r.kind===relationKind);
-    if(relationKind!=="Sin relación"&&!linked){setNotice("Selecciona un registro existente o elige Sin relación.");return}
-    setTasks(old=>[{...form,related:linked?.name||"",relatedType:linked?.kind||"",relatedId:linked?.id||"",clientId:linked?.clientId||"",address:linked?.address||"",assigned:isManager?form.assigned:actor,closure:{...CLOSE_RULES[form.type]},id:Math.max(...old.map(t=>t.id),1000)+1,status:"Pendiente",evidence:"",source:"Manual",history:["Creada manualmente · simulador"]},...old]);
-    setCreateOpen(false);setForm(blank);setRelationKind("Sin relación");setRelationQuery("");setRelationId("");setShowAllVisits(false);setTab("Todas");setNotice("Tarea creada en el simulador.");
-  };
-  const complete=()=>{
-    if(!selectedTask)return;
-    if(!isOwner(selectedTask)){setNotice("Solo el asignado puede completar.");return}
-    if(closeRule(selectedTask).comment&&!comment.trim()){setNotice("Falta comentario obligatorio.");return}
-    if(closeRule(selectedTask).evidence&&!evidence.trim()){setNotice("Falta evidencia obligatoria.");return}
-    if(selectedTask.reopenReason&&!comment.trim()){setNotice("Explica cómo corregiste la observación.");return}
-    change({status:"Completada",evidence:evidence.trim()||selectedTask.evidence,reopenReason:undefined,history:[...selectedTask.history,"Completada por "+actor+" · "+(comment.trim()||"Sin comentario")+" · simulador"]});
-    setNotice("Tarea completada.");setSelected(null);
-  };
-  const reopen=()=>{
-    if(!selectedTask)return;
-    if(!isManager||isOwner(selectedTask)||!canSee(selectedTask)){setNotice("Reapertura solo por gerente autorizado.");return}
-    if(!reopenReason.trim()){setNotice("Es obligatorio indicar motivo.");return}
-    change({status:"Pendiente",reopenReason:reopenReason.trim(),history:[...selectedTask.history,"Reabierta por "+actor+": "+reopenReason.trim()]});setReopenReason("");setSelected(null);setNotice("Tarea reabierta.");
-  };
-  const mobileCheck=(t:Task)=>{
-    if(!isOwner(t)||t.status==="Completada")return;
-    const required=closeRule(t);
-    if(required.comment||required.evidence||t.reopenReason){openDetail(t.id);return;}
-    setTasks(old=>old.map(x=>x.id===t.id?{...x,status:"Completada",history:[...x.history,"Completada por "+actor+" · cierre rápido móvil"]}:x));
-    setNotice("Tarea completada.");
-  };
-  const openDetail=(id:number)=>{const t=tasks.find(x=>x.id===id);setSelected(id);setComment("");setEvidence(t?.evidence||"");setReassignTo(t?.assigned||"");setReopenReason("")};
-  const stateChip=(t:Task)=><Chip size="small" label={t.status==="Completada"?"Completada":isOverdue(t)?"Vencida":"Pendiente"} color={t.status==="Completada"?"success":isOverdue(t)?"error":"warning"} variant="outlined"/>;
-  return <Box sx={{p:{xs:2,md:3},pb:12}}>
-    <Alert severity="info" sx={{mb:3}}><b>SIMULADOR · SPEC-F2-003.</b> Datos ficticios; sin conexión con Salesforce ni con Épico. Estados, tipos, evidencia y permisos sujetos a validación de negocio.</Alert>
-    <Paper variant="outlined" sx={{p:2,mb:2,display:{xs:"none",sm:"block"}}}><Stack direction={{xs:"column",sm:"row"}} spacing={2} alignItems={{sm:"center"}}><Typography fontWeight={700}>Simular permisos:</Typography><FormControl size="small" sx={{minWidth:185}}><InputLabel>Rol</InputLabel><Select label="Rol" value={role} onChange={e=>{setRole(e.target.value as Role);setSelected(null)}}>{(Object.keys(HIERARCHY) as Role[]).map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><Typography variant="body2" color="text.secondary">Usuario: {actor} · jerarquía ficticia</Typography></Stack></Paper>
-    <Stack direction={{xs:"column",sm:"row"}} alignItems={{xs:"stretch",sm:"center"}} justifyContent="space-between" spacing={2} sx={{mb:3}}>
-      <Box><Typography variant="h5" fontWeight={700}>Mis Tareas</Typography><Typography variant="body2" color="text.secondary">Seguimiento comercial y pendientes asignados</Typography></Box>
-      <Button variant="contained" startIcon={<Add/>} onClick={()=>{setForm({...blank,assigned:actor});setRelationKind("Sin relación");setRelationQuery("");setRelationId("");setShowAllVisits(false);setCreateOpen(true)}}>Crear tarea</Button>
-    </Stack>
-    <Stack direction={{xs:"row",sm:"row"}} spacing={{xs:1,sm:2}} sx={{mb:3}}>
-      {[["Pendientes",counts.pending],["Vencidas",counts.overdue],["Completadas",counts.done]].map(([label,n])=><Paper key={label} variant="outlined" sx={{flex:1,p:{xs:1.2,sm:2},minWidth:0,cursor:"pointer"}} onClick={()=>setTab(String(label))}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant={mobile?"h5":"h4"} fontWeight={700}>{n}</Typography></Paper>)}
-    </Stack>
-    {mobile&&<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mb:2}}>
-      <Typography variant="h6" fontWeight={700}>Por hacer</Typography>
-      <Button size="small" variant="outlined" startIcon={<Tune/>} onClick={()=>setMobileFilters(v=>!v)}>{mobileFilters?"Ocultar filtros":"Filtros"}</Button>
-    </Stack>}
-    <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}>
-      <Tabs value={tab} onChange={(_,v)=>setTab(v)} variant="scrollable" scrollButtons="auto" sx={{mb:2}}>
-        {["Todas","Pendientes","Vencidas","Completadas"].map(t=><Tab key={t} value={t} label={t}/>)}
-      </Tabs>
-      <Stack direction={{xs:"column",md:"row"}} spacing={1.5} sx={{mb:2,display:{xs:mobileFilters?"flex":"none",sm:"flex"}}}>
-        <FormControl size="small" sx={{flex:1,minWidth:135}}><InputLabel>Buscar por</InputLabel><Select label="Buscar por" value={searchBy} onChange={e=>{setSearchBy(e.target.value);setQuery("")}}>{["Tarea","Cliente","ID de cliente","Dirección"].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        <TextField size="small" label={searchBy==="Tarea"?"Asunto o ID de tarea":searchBy} value={query} onChange={e=>setQuery(e.target.value)} InputProps={{startAdornment:<Search sx={{mr:1,color:"text.secondary"}}/>}} sx={{flex:2}}/>
-        <FormControl size="small" sx={{flex:1,minWidth:145}}><InputLabel>Tipo</InputLabel><Select label="Tipo" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>{["Todos",...TYPES].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        <FormControl size="small" sx={{flex:1,minWidth:145}}><InputLabel>Asignado</InputLabel><Select label="Asignado" value={userFilter} onChange={e=>setUserFilter(e.target.value)}>{["Todos",...USERS].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        </Stack><Stack direction={{xs:"column",sm:"row"}} spacing={1.5} sx={{mb:2,display:{xs:mobileFilters?"flex":"none",sm:"flex"}}} alignItems={{sm:"center"}}>
-        <TextField size="small" type="date" label="Vence desde" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} InputLabelProps={{shrink:true}}/>
-        <TextField size="small" type="date" label="Vence hasta" value={dateTo} onChange={e=>setDateTo(e.target.value)} inputProps={{min:dateFrom||undefined}} InputLabelProps={{shrink:true}}/>
-        <Button size="small" onClick={()=>{setDateFrom("");setDateTo("")}}>Limpiar fechas</Button>
-      </Stack>
-      {mobile?<Stack spacing={1.25}>{visible.map(t=><Paper key={t.id} variant="outlined" sx={{p:1.5,borderRadius:2}}>
-        <Stack direction="row" alignItems="flex-start" spacing={1.2}>
-          <Button aria-label={t.status==="Completada"?"Tarea completada":"Marcar tarea como completada"} disabled={!isOwner(t)||t.status==="Completada"} onClick={()=>mobileCheck(t)} sx={{minWidth:40,px:0,pt:0.4}}>
-            {t.status==="Completada"?<CheckCircleOutline color="success"/>:<RadioButtonUnchecked color="primary"/>}
-          </Button>
-          <Box sx={{flex:1,minWidth:0}} onClick={()=>openDetail(t.id)}>
-            <Typography fontWeight={700} sx={{textDecoration:t.status==="Completada"?"line-through":"none",opacity:t.status==="Completada"?.6:1}}>{t.subject}</Typography>
-            <Typography variant="body2" color="text.secondary">{t.related||"Actividad interna"}</Typography>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{mt:1,flexWrap:"wrap"}}>{stateChip(t)}<Typography variant="caption" color="text.secondary">Vence: {t.due}</Typography></Stack>
-            {t.status!=="Completada"&&<Typography variant="caption" color="text.secondary">{closeRule(t).comment&&closeRule(t).evidence?"Requiere comentario y evidencia":closeRule(t).comment?"Requiere comentario":closeRule(t).evidence?"Requiere evidencia":"Cierre directo"}</Typography>}
-          </Box><Button size="small" onClick={()=>openDetail(t.id)} sx={{minWidth:40,px:.5}}>Ver</Button>
-        </Stack>
-      </Paper>)}</Stack>:
-      <TableContainer><Table size="small"><TableHead><TableRow>{["Asunto","Tipo","Asignado","Cliente / registro","Vence","Estado","Origen","Acción"].map(x=><TableCell key={x} sx={{fontWeight:700,whiteSpace:"nowrap"}}>{x}</TableCell>)}</TableRow></TableHead><TableBody>{visible.map(t=><TableRow hover key={t.id}><TableCell>{t.subject}</TableCell><TableCell>{t.type}</TableCell><TableCell>{t.assigned}</TableCell><TableCell>{t.related||"Sin relación"}</TableCell><TableCell sx={{whiteSpace:"nowrap"}}>{t.due}</TableCell><TableCell>{stateChip(t)}</TableCell><TableCell>{t.source}</TableCell><TableCell><Button size="small" startIcon={<VisibilityOutlined/>} onClick={()=>openDetail(t.id)}>Ver</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer>}
-      {visible.length===0&&<Typography color="text.secondary" align="center" sx={{py:5}}>No hay tareas con estos filtros.</Typography>}
-    </Paper>
-    <Dialog open={createOpen} onClose={()=>setCreateOpen(false)} maxWidth="sm" fullWidth>
-      <DialogTitle>CREAR NUEVA TAREA</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>
-        <TextField required label="Asunto" value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/>
-        <FormControl fullWidth><InputLabel>Tipo de tarea</InputLabel><Select label="Tipo de tarea" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>{TYPES.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        {isManager?<FormControl fullWidth><InputLabel>Asignado a</InputLabel><Select label="Asignado a" value={form.assigned} onChange={e=>setForm({...form,assigned:e.target.value})}>{allowed.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>:<TextField label="Asignado a" value={actor} disabled/>}
-        <Alert severity="info">Cierre: {CLOSE_RULES[form.type]?.comment?"Comentario obligatorio":"Comentario opcional"} y {CLOSE_RULES[form.type]?.evidence?"evidencia obligatoria":"evidencia opcional"} (ejemplo para validar).</Alert>
-        <Typography variant="subtitle2">Relacionar con un registro existente (opcional)</Typography>
-        <FormControl fullWidth><InputLabel>Tipo de relación</InputLabel><Select label="Tipo de relación" value={relationKind} onChange={e=>{setRelationKind(e.target.value);setRelationId("");setRelationQuery("");setShowAllVisits(false)}}>{["Sin relación","Cliente","Visita","Cotización","Pedido"].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl>
-        {relationKind!=="Sin relación"&&<>
-          <TextField label={relationKind==="Cliente"?"Buscar por nombre, ID o dirección":relationKind==="Visita"?"Buscar visita por cliente, fecha o ID":"Buscar registro por ID o cliente"} value={relationQuery} onChange={e=>{setRelationQuery(e.target.value);setRelationId("")}}/>
-          {relationKind==="Visita"&&<Button size="small" onClick={()=>{setShowAllVisits(v=>!v);setRelationId("")}}>{showAllVisits?"Mostrar solo próximas visitas":"Ver también visitas anteriores"}</Button>}
-          <FormControl fullWidth><InputLabel>Seleccionar {relationKind.toLowerCase()}</InputLabel><Select label={"Seleccionar "+relationKind.toLowerCase()} value={relationId} onChange={e=>setRelationId(e.target.value)}>{relationOptions.map(r=><MenuItem key={r.id} value={r.id}>{r.name} · {r.id}{r.date?" · "+r.date:""}</MenuItem>)}</Select></FormControl>
-          {relationOptions.length===0&&<Alert severity="warning">No se encontraron registros de ejemplo. Ajusta la búsqueda.</Alert>}
-          {relationId&&(()=>{const r=RECORDS.find(x=>x.id===relationId);return r?<Alert severity="success">{r.name} · {r.id} · {r.address}{r.date?" · "+r.date+" ("+r.status+")":""}</Alert>:null})()}
-          <Typography variant="caption" color="text.secondary">Solo datos simulados. Tipos de relación y visibilidad de visitas pendientes con Luis Galván.</Typography>
-        </>}
-        <TextField required type="date" label="Fecha de vencimiento" InputLabelProps={{shrink:true}} value={form.due} onChange={e=>setForm({...form,due:e.target.value})}/>
-        <TextField multiline minRows={3} label="Detalle / instrucciones" value={form.detail} onChange={e=>setForm({...form,detail:e.target.value})}/>
-      </Stack></DialogContent><DialogActions><Button onClick={()=>setCreateOpen(false)}>Cancelar</Button><Button variant="contained" onClick={create}>Crear tarea</Button></DialogActions>
-    </Dialog>
-    <Dialog open={!!selectedTask} onClose={()=>setSelected(null)} maxWidth="sm" fullWidth>
-      {selectedTask&&<><DialogTitle>DETALLE DE TAREA #{selectedTask.id}</DialogTitle><DialogContent>
-        <Stack spacing={1.5}><Typography variant="h6">{selectedTask.subject}</Typography>{stateChip(selectedTask)}
-          <Typography><b>Tipo:</b> {selectedTask.type}</Typography><Typography><b>Asignado:</b> {selectedTask.assigned}</Typography><Typography><b>Vencimiento:</b> {selectedTask.due}</Typography><Typography><b>Relacionado:</b> {selectedTask.related||"Sin registro relacionado"}</Typography><Typography><b>Origen:</b> {selectedTask.source}</Typography>
-          <Typography><b>Instrucciones:</b> {selectedTask.detail||"Sin instrucciones adicionales"}</Typography>
-          <Divider/><Typography fontWeight={700}>Historial de simulación</Typography>{selectedTask.history.map((h,i)=><Typography key={i} variant="body2" color="text.secondary">• {h}</Typography>)}
-          <Divider/><TextField label="Comentario de ejecución (opcional)" multiline minRows={2} value={comment} onChange={e=>setComment(e.target.value)} disabled={selectedTask.status==="Completada"||!isOwner(selectedTask)}/>
-          <Button component="label" variant="outlined" disabled={selectedTask.status==="Completada"||!isOwner(selectedTask)} startIcon={<EditOutlined/>}>Adjuntar archivo (simulación)<input type="file" hidden onChange={e=>setEvidence(e.target.files?.[0]?.name||"")}/></Button>
-          {evidence&&<Typography variant="caption">Archivo seleccionado: {evidence} (no se carga a ningún servidor)</Typography>}
-          <Alert severity="info">Condiciones originales: {closeRule(selectedTask).comment?"Comentario requerido":"Comentario opcional"} y {closeRule(selectedTask).evidence?"archivo requerido":"archivo opcional"}.</Alert>
-          {selectedTask.reopenReason&&<Alert severity="warning">Observación: {selectedTask.reopenReason}. Vencimiento original conservado.</Alert>}
-          {selectedTask.status==="Completada"&&isManager&&!isOwner(selectedTask)&&<TextField label="Motivo obligatorio de reapertura" multiline value={reopenReason} onChange={e=>setReopenReason(e.target.value)}/>}
-          {selectedTask.status==="Pendiente"&&isManager&&!isOwner(selectedTask)&&<Stack spacing={1}><FormControl size="small"><InputLabel>Nuevo asignado</InputLabel><Select label="Nuevo asignado" value={reassignTo} onChange={e=>setReassignTo(e.target.value)}>{allowed.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><Button onClick={()=>{if(!reassignTo||reassignTo===selectedTask.assigned)return;change({assigned:reassignTo,history:[...selectedTask.history,"Reasignada por "+actor+" a "+reassignTo]});setNotice("Reasignación simulada")}}>Reasignar</Button></Stack>}
-        </Stack>
-      </DialogContent><DialogActions><Button onClick={()=>setSelected(null)}>Cerrar</Button>
-        {selectedTask.status==="Completada"?(isManager&&!isOwner(selectedTask)&&<Button color="warning" startIcon={<Replay/>} onClick={reopen}>Reabrir (supervisor)</Button>):(isOwner(selectedTask)&&<Button variant="contained" startIcon={<CheckCircleOutline/>} onClick={complete}>Completar tarea</Button>)}
-      </DialogActions></>}
-    </Dialog>
-    <Snackbar open={!!notice} autoHideDuration={4500} onClose={()=>setNotice("")} message={notice}/>
-  </Box>;
+ useSetBreadcrumb(['Seguimiento comercial','Mis Tareas']);
+ const c=useTasks(),{data,actor,role,now}=c;const [notice,setNotice]=useState(''),[create,setCreate]=useState(false),[selected,setSelected]=useState<string|null>(null),[tab,setTab]=useState('Todas'),[searchBy,setSearchBy]=useState('Tarea'),[query,setQuery]=useState(''),[type,setType]=useState('Todos'),[owner,setOwner]=useState('Todos'),[client,setClient]=useState('Todos'),[from,setFrom]=useState(''),[to,setTo]=useState('');
+ const [edit,setEdit]=useState<Task|null>(null),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[action,setAction]=useState<'cancel'|'reopen'|null>(null);
+ const [catalog,setCatalog]=useState(false),[newType,setNewType]=useState(''),[seriesOpen,setSeriesOpen]=useState(false),[seriesEdit,setSeriesEdit]=useState<Series|null>(null),[seriesReason,setSeriesReason]=useState(''),[transferClient,setTransferClient]=useState(CLIENTS[0].clientId),[transferOwner,setTransferOwner]=useState(SELLERS[1]);
+ const t=data.tasks.find(x=>x.id===selected);const canEdit=!!t&&isOpen(t)&&(t.assigned===actor||canManage(t,actor,role));
+ const label=(x:Task)=>overdue(x,now)?'Vencida':x.status;
+ const scoped=data.tasks.filter(x=>canSee(x,actor,role));
+ const rows=useMemo(()=>scoped.filter(x=>{
+ if(tab!=='Todas'&&label(x)!==tab)return false;if(type!=='Todos'&&x.type!==type||owner!=='Todos'&&x.assigned!==owner||client!=='Todos'&&x.link?.clientId!==client)return false;
+ if(from&&x.due.slice(0,10)<from||to&&x.due.slice(0,10)>to)return false;
+ const hay=searchBy==='Tarea'?x.subject+' '+x.id:searchBy==='Cliente'?x.link?.client:searchBy==='ID de cliente'?x.link?.clientId:x.link?.address;
+ return !query||normalize(hay||'').includes(normalize(query));
+ }).sort((a,b)=>Number(!overdue(a,now))-Number(!overdue(b,now))||a.due.localeCompare(b.due)),[data.tasks,role,actor,tab,type,owner,client,from,to,query,searchBy,now]);
+ const run=(fn:()=>void)=>{try{if(!navigator.onLine)throw Error('Necesitas conexión para confirmar cambios. Conserva tu captura y reintenta.');fn();}catch(e){setNotice((e as Error).message);}};
+ const open=(x:Task)=>{setSelected(x.id);setEdit({...x});setReason('');setAction(null);};
+ const update=(changes:Partial<Task>,event:string)=>{if(!t)return;c.commit(d=>({...d,tasks:d.tasks.map(x=>x.id===t.id?{...x,...changes,history:[...x.history,`${event} · ${actor} · ${new Date().toLocaleString('es-MX')}`]}:x)}));};
+ const saveEdit=()=>run(()=>{if(!t||!edit||!canEdit)return;if(!edit.subject.trim()||!edit.due){setNotice('El asunto y el vencimiento son obligatorios.');return;}
+ const patch=canManage(t,actor,role)?{subject:edit.subject,detail:edit.detail,due:edit.due,assigned:edit.assigned}:{subject:edit.subject,detail:edit.detail};update(patch,'Tarea editada');setNotice('Cambios guardados.');});
+ const complete=()=>run(()=>{if(!t||!isOpen(t)||t.assigned!==actor)return;update({status:'Completada',reason:undefined},'Completada sin requerir comentario ni evidencia');setSelected(null);setNotice('Tarea completada.');});
+ const confirmAction=()=>run(()=>{if(!t||!reason.trim()){setNotice('Indica un motivo.');return;}if(action==='cancel'&&canEdit){update({status:'Cancelada',reason},`Cancelada: ${reason}`);}else if(action==='reopen'&&t.status==='Completada'&&canManage(t,actor,role)){update({status:'Pendiente',reason},`Reabierta: ${reason}`);}else return;setSelected(null);setAction(null);});
+ const canSeries=(s:Series)=>s.creator===actor||managers(role)&&allowedFor(role,actor).includes(s.template.assigned)||role==='Administrador'&&c.adminSeries;
+ const stopSeries=(s:Series)=>run(()=>{if(!canSeries(s))return;const r=window.prompt('Motivo para detener futuras repeticiones');if(!r?.trim())return;c.commit(d=>({...d,series:d.series.map(x=>x.id===s.id?{...x,active:false,history:[...x.history,`Detenida por ${actor}: ${r}`]}:x)}));setNotice('Serie detenida. Las tareas generadas conservan su estado.');});
+ const saveSeries=()=>run(()=>{if(!seriesEdit||!canSeries(seriesEdit))return;const err=validateForm(seriesEdit.template);if(err){setNotice(err);return;}if(!seriesReason.trim()){setNotice('Indica el motivo del cambio de serie.');return;}if(seriesEdit.template.due.slice(0,10)<=c.simDay){setNotice('La primera repetición del cambio debe ser posterior al día simulado.');return;}
+ c.commit(d=>{const replacement={...seriesEdit,id:uid(),history:[...seriesEdit.history,`Reprogramada por ${actor}: ${seriesReason}`]};const series=[...d.series.map(x=>x.id===seriesEdit.id?{...x,active:false,history:[...x.history,'Sustituida para futuras repeticiones']}:x),replacement];return {...d,series,tasks:generate(series,d.tasks,c.simDay)};});setSeriesEdit(null);setNotice('Cambio aplicado a futuras repeticiones. Tareas existentes conservadas.');});
+ if(!c.ready)return <Box sx={{p:3}}>Cargando tareas…</Box>;
+ const sticky={position:'sticky',left:0,zIndex:1,bgcolor:'background.paper',minWidth:{xs:175,sm:240},maxWidth:{xs:185,sm:340},boxShadow:'2px 0 3px #0000000d'} as const;
+ return <Box sx={{p:{xs:2,md:3},pb:12,minWidth:0}}>
+ <Alert severity="info" sx={{mb:2}}>Prototipo interactivo · datos ficticios guardados solo en este navegador. Sin conexión a Salesforce ni Épico. Sin avisos ni recordatorios.</Alert>
+ <Paper variant="outlined" sx={{p:2,mb:3}}><Typography fontWeight={700} sx={{mb:1}}>Simular usuario y escenarios</Typography><Stack direction={{xs:'column',md:'row'}} spacing={1.5} flexWrap="wrap" useFlexGap>
+ <TextField select size="small" label="Rol" value={role} onChange={e=>{c.setRole(e.target.value as Role);setSelected(null);setOwner('Todos');}} sx={{minWidth:190}}>{ROLES.map(r=><MenuItem key={r} value={r}>{r}</MenuItem>)}</TextField>
+ {role==='Asesor'&&<TextField select size="small" label="Asesor" value={c.seller} onChange={e=>{c.setSeller(e.target.value);setSelected(null);}}>{SELLERS.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>}
+ <TextField size="small" type="date" label="Día simulado" InputLabelProps={{shrink:true}} value={c.simDay} onChange={e=>e.target.value&&c.setSimDay(e.target.value)}/>
+ {role==='Administrador'&&<FormControlLabel control={<Checkbox checked={c.adminSeries} onChange={(_,v)=>c.setAdminSeries(v)}/>} label="Permiso específico de series"/>}
+ <Typography alignSelf="center" variant="body2">Usuario: {actor}</Typography></Stack>
+ {role==='Otra área autorizada'&&<Alert severity="info" sx={{mt:1}}>Puede asignar al asesor de contacto con el cliente a nivel nacional. Este rol no obtiene consulta global ni cierre de tareas ajenas.</Alert>}
+ {managers(role)&&<Stack direction={{xs:'column',sm:'row'}} spacing={1} sx={{mt:2}}><TextField select size="small" label="Cliente que cambia de asesor" value={transferClient} onChange={e=>setTransferClient(e.target.value)} sx={{minWidth:200}}>{CLIENTS.map(x=><MenuItem key={x.clientId} value={x.clientId}>{x.client}</MenuItem>)}</TextField><TextField select size="small" label="Nuevo asesor" value={transferOwner} onChange={e=>setTransferOwner(e.target.value)}>{SELLERS.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField><Button variant="outlined" onClick={()=>run(()=>{c.changeOwner(transferClient,transferOwner);setNotice('Cliente reasignado: tareas abiertas transferidas automáticamente.');})}>Cambiar asesor del cliente</Button></Stack>}
+ </Paper>
+ <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" spacing={1} sx={{mb:2}}><Box><Typography variant="h5" fontWeight={700}>Mis Tareas</Typography><Typography variant="body2">Seguimiento comercial y pendientes asignados</Typography></Box><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Button onClick={()=>setSeriesOpen(true)}>Series recurrentes</Button>{role==='Administrador'&&<Button onClick={()=>setCatalog(true)}>Catálogo de tipos</Button>}{role!=='Administrador'&&<Button variant="contained" startIcon={<Add/>} onClick={()=>setCreate(true)}>Crear tarea</Button>}</Stack></Stack>
+ <Stack direction="row" spacing={1} sx={{mb:2}}>{['Pendiente','Vencida','Completada'].map(state=><Paper variant="outlined" key={state} sx={{p:2,flex:1,cursor:'pointer'}} onClick={()=>setTab(state)}><Typography variant="body2">{state==='Pendiente'?'Pendientes':state==='Vencida'?'Vencidas':'Completadas'}</Typography><Typography variant="h5" fontWeight={700}>{scoped.filter(x=>label(x)===state).length}</Typography></Paper>)}</Stack>
+ <Paper variant="outlined" sx={{p:{xs:1,sm:2}}}>
+ <Tabs value={tab} onChange={(_,v)=>setTab(v)} variant="scrollable" scrollButtons="auto">{['Todas','Pendiente','Vencida','Completada','Cancelada'].map(x=><Tab key={x} value={x} label={x}/>)}</Tabs>
+ <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))',lg:'repeat(4,minmax(0,1fr))'},gap:1.5,my:2}}>
+ <TextField size="small" select label="Buscar por" value={searchBy} onChange={e=>setSearchBy(e.target.value)}>{['Tarea','Cliente','ID de cliente','Dirección'].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField><TextField size="small" label="Buscar" value={query} onChange={e=>setQuery(e.target.value)}/>
+ <Autocomplete size="small" options={['Todos',...data.types]} value={type} onChange={(_,v)=>setType(v||'Todos')} renderInput={p=><TextField {...p} label="Tipo"/>}/>
+ <TextField select size="small" label="Responsable" value={owner} onChange={e=>setOwner(e.target.value)}>{['Todos',...Array.from(new Set(scoped.map(x=>x.assigned)))].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+ <TextField select size="small" label="Cliente" value={client} onChange={e=>setClient(e.target.value)}><MenuItem value="Todos">Todos</MenuItem>{Array.from(new Map(scoped.filter(x=>x.link).map(x=>[x.link!.clientId,x.link!])).values()).map(x=><MenuItem key={x.clientId} value={x.clientId}>{x.client}</MenuItem>)}</TextField>
+ <TextField size="small" label="Vence desde" type="date" InputLabelProps={{shrink:true}} value={from} onChange={e=>setFrom(e.target.value)}/><TextField size="small" label="Vence hasta" type="date" InputLabelProps={{shrink:true}} value={to} onChange={e=>setTo(e.target.value)}/><Button onClick={()=>{setFrom('');setTo('');setQuery('');setType('Todos');setOwner('Todos');setClient('Todos');setTab('Todas');}}>Limpiar filtros</Button></Box>
+ {from&&to&&from>to&&<Alert severity="warning">La fecha Desde es posterior a Hasta. Ajusta el rango.</Alert>}
+ <TableContainer sx={{maxWidth:'100%',overflowX:'auto'}}><Table size="small" aria-label="Mis Tareas" sx={{minWidth:1100}}><TableHead><TableRow>{['Asunto','Estado','Vencimiento','Cliente','Tipo','Responsable','Registro relacionado','Acción'].map((x,i)=><TableCell key={x} sx={{fontWeight:700,...(i===0?sticky:{whiteSpace:'nowrap'})}}>{x}</TableCell>)}</TableRow></TableHead><TableBody>{rows.map(x=><TableRow hover key={x.id}><TableCell sx={sticky}><Button sx={{textAlign:'left',justifyContent:'flex-start'}} onClick={()=>open(x)}>{x.subject}</Button>{x.reason&&<Typography variant="caption" display="block">{x.status==='Pendiente'?'Reabierta':'Motivo'}: {x.reason}</Typography>}</TableCell><TableCell><Chip size="small" label={label(x)} variant="outlined" color={overdue(x,now)?'error':x.status==='Completada'?'success':x.status==='Cancelada'?'default':'warning'}/></TableCell><TableCell sx={{whiteSpace:'nowrap'}}>{x.due.replace('T',' ')}</TableCell><TableCell>{x.link?.client||'Sin cliente'}</TableCell><TableCell>{x.type}</TableCell><TableCell>{x.assigned}</TableCell><TableCell>{x.link?.visitId?`Visita ${x.link.visitId} · ${x.link.visitStatus||''}`:x.link?`Cliente ${x.link.clientId}`:'Sin relación'}</TableCell><TableCell><Button size="small" startIcon={<VisibilityOutlined/>} onClick={()=>open(x)}>Ver</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer>
+ {!rows.length&&<Typography align="center" sx={{py:5}}>No hay tareas con estos filtros.</Typography>}</Paper>
+ <TaskComposer open={create} onClose={()=>setCreate(false)} onCreated={()=>setNotice('Tarea o serie guardada en este navegador.')}/>
+ <Dialog open={!!t} onClose={()=>setSelected(null)} fullWidth maxWidth="sm">{t&&edit&&<><DialogTitle>DETALLE DE TAREA</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>
+ <Chip label={label(t)} sx={{alignSelf:'flex-start'}}/><Typography variant="caption">{t.id} · {t.source}</Typography>
+ <TextField label="Asunto" value={edit.subject} disabled={!canEdit} onChange={e=>setEdit({...edit,subject:e.target.value})}/><Typography><b>Tipo:</b> {t.type}</Typography>
+ <TextField label="Detalle / instrucciones" multiline value={edit.detail} disabled={!canEdit} onChange={e=>setEdit({...edit,detail:e.target.value})}/>
+ <TextField type="datetime-local" label="Vencimiento" InputLabelProps={{shrink:true}} value={edit.due} disabled={!isOpen(t)||!canManage(t,actor,role)} onChange={e=>setEdit({...edit,due:e.target.value})}/>
+ <TextField select label="Responsable" value={edit.assigned} disabled={!isOpen(t)||!canManage(t,actor,role)} onChange={e=>setEdit({...edit,assigned:e.target.value})}>{Array.from(new Set([t.assigned,...allowedFor(role,actor)])).map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+ {canEdit&&<Button onClick={saveEdit}>Guardar cambios de tarea</Button>}
+ {t.link&&<Alert severity="info">Cliente {t.link.clientId}: {t.link.client} · {t.link.address}{t.link.visitId?` · Visita ${t.link.visitId} (${t.link.visitStatus||'origen'})`:''}</Alert>}
+ <Alert severity="info">Comentario y evidencia opcionales; puedes completar sin capturarlos.</Alert>
+ <TextField label="Comentario (opcional)" value={t.comment} multiline disabled={!isOpen(t)||t.assigned!==actor} onChange={e=>{try{update({comment:e.target.value},'Comentario actualizado');}catch{setNotice('No se pudo conservar el comentario.');}}}/>
+ <Attachments value={t.attachments} disabled={!isOpen(t)||t.assigned!==actor} onBusy={setBusy} onChange={attachments=>{try{if(!isOpen(t)||t.assigned!==actor)return;update({attachments},'Evidencia actualizada');}catch{setNotice('No se pudo asociar el archivo.');}}}/>
+ {t.reason&&<Alert severity="warning">{t.reason}</Alert>}
+ {action&&<TextField label={action==='cancel'?'Motivo obligatorio de cancelación':'Motivo obligatorio de reapertura'} multiline value={reason} onChange={e=>setReason(e.target.value)}/>}
+ <Divider/><Typography fontWeight={700}>Historial</Typography>{t.history.map((h,i)=><Typography variant="body2" key={i}>{h}</Typography>)}
+ </Stack></DialogContent><DialogActions sx={{flexWrap:'wrap'}}><Button onClick={()=>setSelected(null)}>Cerrar</Button>{action?<Button variant="contained" onClick={confirmAction}>Confirmar {action==='cancel'?'cancelación':'reapertura'}</Button>:<>{canEdit&&<Button color="error" onClick={()=>setAction('cancel')}>Cancelar tarea</Button>}{t.status==='Completada'&&canManage(t,actor,role)&&<Button onClick={()=>setAction('reopen')}>Reabrir tarea</Button>}{isOpen(t)&&t.assigned===actor&&<Button variant="contained" disabled={busy} onClick={complete}>Completar tarea</Button>}</>}</DialogActions></>}</Dialog>
+ <Dialog open={catalog} onClose={()=>setCatalog(false)} fullWidth maxWidth="sm"><DialogTitle>CATÁLOGO DE TIPOS</DialogTitle><DialogContent><Stack spacing={1}><Alert severity="info">{data.types.length} tipos vigentes. Retirar conserva las tareas históricas. Sin configuración de obligatoriedad en esta fase.</Alert><TextField label="Nuevo tipo" value={newType} onChange={e=>setNewType(e.target.value)}/><Button onClick={()=>run(()=>{if(role!=='Administrador'||!newType.trim()||data.types.includes(newType.trim()))return;c.commit(d=>({...d,types:[...d.types,newType.trim()]}));setNewType('');})}>Agregar tipo</Button>{data.types.map(x=><Stack key={x} direction="row" alignItems="center" spacing={1}><Typography sx={{flex:1}}>{x}</Typography><Button onClick={()=>run(()=>{if(role!=='Administrador')return;const name=window.prompt('Nuevo nombre del tipo',x)?.trim();if(!name||data.types.includes(name))return;c.commit(d=>({...d,types:d.types.map(t=>t===x?name:t)}));})}>Editar</Button><Button color="error" onClick={()=>run(()=>{if(role!=='Administrador'||!window.confirm(`¿Retirar ${x}? Las tareas existentes conservarán su tipo.`))return;c.commit(d=>({...d,types:d.types.filter(t=>t!==x)}));})}>Retirar</Button></Stack>)}</Stack></DialogContent><DialogActions><Button onClick={()=>setCatalog(false)}>Cerrar</Button></DialogActions></Dialog>
+ <Dialog open={seriesOpen} onClose={()=>setSeriesOpen(false)} fullWidth maxWidth="md"><DialogTitle>SERIES RECURRENTES</DialogTitle><DialogContent><Stack spacing={2}>{data.series.filter(s=>canSeries(s)).map(s=><Paper variant="outlined" sx={{p:2}} key={s.id}><Typography fontWeight={700}>{s.template.subject}</Typography><Typography>Cada {s.template.repeat?.every} {s.template.repeat?.unit} · {s.template.repeat?.zone} · {s.active?'Activa':'Detenida'}</Typography><Typography variant="body2">{s.creator} · {s.template.assigned}</Typography>{s.history.map((h,i)=><Typography variant="caption" display="block" key={i}>{h}</Typography>)}{s.active&&<Stack direction="row"><Button onClick={()=>{setSeriesReason('');setSeriesEdit(JSON.parse(JSON.stringify(s)));}}>Editar futuras</Button><Button color="error" onClick={()=>stopSeries(s)}>Detener serie</Button></Stack>}</Paper>)}{!data.series.some(canSeries)&&<Typography>No hay series dentro de tu alcance.</Typography>}</Stack></DialogContent><DialogActions><Button onClick={()=>setSeriesOpen(false)}>Cerrar</Button></DialogActions></Dialog>
+ <Dialog open={!!seriesEdit} onClose={()=>setSeriesEdit(null)} fullWidth maxWidth="sm"><DialogTitle>EDITAR FUTURAS REPETICIONES</DialogTitle>{seriesEdit&&<DialogContent><Stack spacing={2} sx={{pt:1}}><Alert severity="info">Conserva todas las tareas ya generadas. Este cambio sustituye únicamente las futuras repeticiones.</Alert><TextField type="datetime-local" label="Primera fecha del cambio" InputLabelProps={{shrink:true}} value={seriesEdit.template.due} onChange={e=>setSeriesEdit({...seriesEdit,template:{...seriesEdit.template,due:e.target.value}})}/><TextField type="number" label="Cada" value={seriesEdit.template.repeat!.every} onChange={e=>setSeriesEdit({...seriesEdit,template:{...seriesEdit.template,repeat:{...seriesEdit.template.repeat!,every:Number(e.target.value)}}})}/><TextField label="Motivo obligatorio del cambio" value={seriesReason} onChange={e=>setSeriesReason(e.target.value)}/></Stack></DialogContent>}<DialogActions><Button onClick={()=>setSeriesEdit(null)}>Volver</Button><Button onClick={saveSeries} variant="contained">Guardar cambio</Button></DialogActions></Dialog>
+ <Snackbar open={!!notice} autoHideDuration={6500} onClose={()=>setNotice('')} message={notice}/>
+ </Box>;
 }

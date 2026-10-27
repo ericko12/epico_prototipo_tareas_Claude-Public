@@ -13,6 +13,11 @@ import { clientId, normalize } from "@/features/agenda/domain/agenda.data";
 import { ActivityType } from "@/features/agenda/domain/agenda.types";
 import { EpicoLabel, Hint, statusVariant } from "./shared";
 
+import {TaskComposer} from "@/features/tareas/TaskComposer";
+import {CLIENTS,sellerName} from "@/features/tareas/model";
+import {useTasks} from "@/features/tareas/TaskContext";
+import {clientIds} from "@/features/agenda/domain/agenda.data";
+
 const closeBtnSx = { borderRadius: "4px", minHeight: "32px", fontWeight: FontWeightEnum.Medium, color: ColorsEpico.ColorDarkCharcoal, borderColor: ColorsEpico.ColorGrayNeutral, fontSize: FontSizesEnum.Gamma };
 const saveBtnSx = { borderRadius: "4px", minHeight: "32px", fontWeight: FontWeightEnum.Medium, background: ColorsEpico.ColorPrimary, fontSize: FontSizesEnum.Gamma };
 
@@ -87,10 +92,12 @@ const Fact = ({ label, value }: { label: string; value: React.ReactNode }) => (
 
 export const EventDetailDialog = () => {
   const a = useAgenda();
+  const taskContext=useTasks();
   const e = a.detail.event;
   const [objective, setObjective] = useState("");
   const [result, setResult] = useState("");
   const [findings, setFindings] = useState("");
+  const [taskOpen,setTaskOpen]=useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   useEffect(() => {
     setObjective(e?.objective ?? "");
@@ -113,7 +120,10 @@ export const EventDetailDialog = () => {
   const canCheckIn = a.canExecuteVisit(e);
   const canCheckOut = a.role === "advisor" && e.status === "Check-in activo";
   const doCheckOut = () => setCheckoutError(a.completeCheckOut(e, { objective, result, findings }));
+  const client=CLIENTS.find(c=>c.client.toLocaleLowerCase("es")===e.title.toLocaleLowerCase("es"));
   return (
+    <>
+    <TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={taskContext.data.owners[client?.clientId||clientIds[e.title]]||sellerName(a.profile.label)} checkout link={{clientId:client?.clientId||clientIds[e.title]||"CLIENTE-"+e.title,client:e.title,address:e.address,visitId:a.owner+":"+String(e.id),visitStatus:e.status}}/>
     <EpicoDialog
       open
       title={e.title}
@@ -198,6 +208,8 @@ export const EventDetailDialog = () => {
               value={findings}
               onChange={(x) => setFindings(x.target.value)}
             />
+            <Button variant="outlined" onClick={()=>setTaskOpen(true)}>Crear tarea de seguimiento (opcional)</Button>
+            <Typography variant="caption">Puedes finalizar la visita aunque no guardes una tarea; el borrador se conserva.</Typography>
             {checkoutError && <Alert severity="error" variant="outlined">{checkoutError}</Alert>}
           </Stack>
         </Box>
@@ -212,7 +224,7 @@ export const EventDetailDialog = () => {
           {e.automaticClose && <EpicoLabel variant="eta">Cierre automático</EpicoLabel>}
         </Box>
       )}
-    </EpicoDialog>
+    </EpicoDialog></>
   );
 };
 

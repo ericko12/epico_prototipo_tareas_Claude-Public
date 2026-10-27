@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),ts=require('typescript');
+const source=ts.transpileModule(fs.readFileSync('features/tareas/model.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+const dependency={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('features/agenda/domain/agenda.data.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,dependency);
+const sandbox={require:()=>dependency.exports,exports:{},crypto:require('node:crypto').webcrypto,Date,Math,console};vm.runInNewContext(source,sandbox);const m=sandbox.exports;
+assert.equal(m.TYPES.length,40);assert.equal(new Set(m.TYPES).size,40);
+const r={every:1,unit:'meses',end:'cantidad',until:'',count:4,zone:'America/Mexico_City'};
+assert.equal(m.occurrence('2027-01-31T17:00',r,1),'2027-02-28T17:00');assert.equal(m.occurrence('2027-01-31T17:00',r,2),'2027-03-31T17:00');assert.equal(m.occurrence('2028-01-31T17:00',r,1),'2028-02-29T17:00');
+const f={...m.blank('Luis Galván'),due:'2027-01-31T17:00',subject:'Serie',repeat:r};const series={id:'S',creator:'Luis Galván',template:f,active:true,history:[]};
+const tasks=m.generate([series],[],'2027-03-31');assert.equal(tasks.length,3);assert.equal(m.generate([series],tasks,'2027-03-31').length,3);assert.equal(m.generate([{...series,active:false}],tasks,'2027-04-30').length,3);
+assert.equal(m.fileError({name:'test.jpg',size:10*1024*1024},9),'');assert.match(m.fileError({name:'test.jpg',size:10*1024*1024+1},0),/10 MB/);assert.equal(m.fileError({name:'test.pdf',size:20*1024*1024},0),'');assert.match(m.fileError({name:'test.pdf',size:1},10),/10 archivos/);assert.match(m.fileError({name:'test.mp4',size:1},0),/Formato/);assert.match(m.fileError({name:'test.doc',size:1},0),/Formato/);
+assert.equal(m.validateForm({...f,repeat:undefined}),'');assert.match(m.validateForm({...f,repeat:{...r,every:0}}),/intervalo/);
+assert.equal(m.canSee({...tasks[0],assigned:'Yuridia Torres'},'Otra área autorizada','Otra área autorizada'),false);assert.equal(m.canManage({...tasks[0],assigned:'Luis Galván'},'Administrador','Administrador'),false);
+const linked=tasks.map((t,i)=>({...t,link:m.CLIENTS[0],status:i===0?'Completada':i===1?'Cancelada':'Pendiente'}));const moved=m.transfer(linked,m.CLIENTS[0].clientId,'Yuridia Torres','Gerente regional');assert.equal(moved[0].assigned,'Luis Galván');assert.equal(moved[1].assigned,'Luis Galván');assert.equal(moved[2].assigned,'Yuridia Torres');assert.equal(moved[2].due,linked[2].due);
+console.log('23 verificaciones de catálogo, recurrencia, idempotencia, permisos, adjuntos y transferencia: OK');

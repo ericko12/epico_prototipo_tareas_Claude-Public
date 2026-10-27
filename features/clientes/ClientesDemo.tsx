@@ -8,6 +8,8 @@ import {EventDetailDialog,EventFormDialog,CancelEventDialog} from "@/features/ag
 import {Alert,Box,Button,Card,CardContent,Chip,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid2 as Grid,Paper,Stack,Tab,Tabs,TextField,Typography,FormControl,InputLabel,Select,MenuItem,RadioGroup,FormControlLabel,Radio,Snackbar} from "@mui/material";
 import {Add,ArrowBack,AssignmentOutlined,CalendarMonth,CheckCircle,LocationOn,Search,Visibility,PlayArrow,StopCircle,Phone,Email,Edit,Storefront,AttachMoney,AccountCircle,AccountBalance,Event,Inventory2,LocalOffer,Work} from "@mui/icons-material";
 import {useSetBreadcrumb} from "@/features/layoutMain/infrastructure/ui/BreadcrumbContext";
+import {TaskComposer} from "@/features/tareas/TaskComposer";
+import {useTasks} from "@/features/tareas/TaskContext";
 type Client=ClientListItem;
 const clients:Client[]=[
 {id:"131",name:"ANDRADE AVIÑA JESUS",rfc:"AAAJ6109236C7",phone:"3314502303",email:"jesusandradejaa23@hotmail.com",branch:"Tesistan",seller:"ALEMAN PADILLA MIGUEL AN...",region:"Política Comercial 2022",division:"Refaccionaria",segment:"Menudeo",address:"Tesistán, Zapopan, Jalisco",bankReference:"8611082",sellerId:"35",registeredAt:"2013-12-19",subClassification:"Taller Institucional",scenario:"Cliente de referencia"},
@@ -19,6 +21,7 @@ const clients:Client[]=[
 export default function ClientesDemo(){
 const router=useRouter();
 const agenda=useAgenda();
+const tasksContext=useTasks();
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
 const openVisit=()=>{
  if(!detail)return;
@@ -32,14 +35,10 @@ const openVisit=()=>{
  const time=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
  agenda.openForm({client:detail.name,address:detail.address,date:today(),time,creationMode:"unplanned",startAfterCreate:true});
 };
-const taskTypes=["Seguimiento comercial","Enviar documentación","Llamada a cliente","Validación de información","Actividad interna"];
-const closeRules:Record<string,{comment:boolean;evidence:boolean}>={"Seguimiento comercial":{comment:true,evidence:false},"Enviar documentación":{comment:false,evidence:true},"Llamada a cliente":{comment:false,evidence:false},"Validación de información":{comment:true,evidence:true},"Actividad interna":{comment:false,evidence:false}};
 const [detail,setDetail]=useState<Client|null>(null),[tab,setTab]=useState(0),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
 useSetBreadcrumb(detail?["Clientes","Listado de clientes","Detalle"]:["Clientes","Listado de clientes"]);
-const [taskType,setTaskType]=useState(taskTypes[0]),[taskDetail,setTaskDetail]=useState(""),[taskRelation,setTaskRelation]=useState("Cliente"),[taskRelatedId,setTaskRelatedId]=useState(""),[taskAssigned,setTaskAssigned]=useState("Luis Galván"),[taskRelationQuery,setTaskRelationQuery]=useState("");
 const client=detail;
-const openTask=()=>{setTaskSubject("");setTaskDue(new Date().toISOString().slice(0,10));setTaskType(taskTypes[0]);setTaskDetail("");setTaskRelation("Cliente");setTaskRelatedId(detail?.id||"");setTaskAssigned("Luis Galván");setTaskRelationQuery("");setTaskOpen(true)};
-const createTask=()=>{if(!taskSubject.trim()||!taskType||!taskAssigned||!taskDue){setNotice("Completa asunto, tipo, responsable y vencimiento.");return}if(taskRelation!=="Sin relación"&&!taskRelatedId){setNotice("Selecciona un registro existente o elige Sin relación.");return}setTaskOpen(false);setNotice("Tarea creada en el simulador (no se guarda en backend).")};
+const openTask=()=>setTaskOpen(true);
 const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.activityType==="visit").map(e=>({id:String(e.id),label:`Visita · ${e.date??"Hoy"}, ${e.time}`})):[];
 const currentVisit=client?agenda.profiles.luis.events.find(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.status==="Check-in activo"):undefined;
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
@@ -89,20 +88,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={openTask}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
 </>:<DiagnosticoDemo client={client}/>}
 </>}
-<Dialog open={taskOpen} onClose={()=>setTaskOpen(false)} fullWidth maxWidth="sm">
-<DialogTitle>CREAR NUEVA TAREA</DialogTitle>
-<DialogContent><Stack spacing={2} sx={{pt:1}}>
-<TextField required label="Asunto" value={taskSubject} onChange={e=>setTaskSubject(e.target.value)}/>
-<FormControl fullWidth><InputLabel>Tipo de tarea</InputLabel><Select label="Tipo de tarea" value={taskType} onChange={e=>setTaskType(e.target.value)}>{taskTypes.map(t=><MenuItem key={t} value={t}>{t}</MenuItem>)}</Select></FormControl>
-<TextField label="Asignado a" value={taskAssigned} disabled/>
-<Alert severity="info">Cierre: {closeRules[taskType]?.comment?"Comentario obligatorio":"Comentario opcional"} y {closeRules[taskType]?.evidence?"evidencia obligatoria":"evidencia opcional"} (ejemplo para validar).</Alert>
-<Typography variant="subtitle2">Relacionar con un registro existente (opcional)</Typography>
-<FormControl fullWidth><InputLabel>Tipo de relación</InputLabel><Select label="Tipo de relación" value={taskRelation} onChange={e=>{setTaskRelation(e.target.value);setTaskRelatedId(e.target.value==="Cliente"?client?.id||"":"");setTaskRelationQuery("")}}>{["Sin relación","Cliente","Visita","Cotización","Pedido"].map(t=><MenuItem key={t} value={t}>{t}</MenuItem>)}</Select></FormControl>
-{taskRelation!=="Sin relación"&&<><TextField label={taskRelation==="Cliente"?"Buscar por nombre, ID o dirección":taskRelation==="Visita"?"Buscar visita por cliente, fecha o ID":"Buscar registro por ID o cliente"} value={taskRelationQuery} onChange={e=>{setTaskRelationQuery(e.target.value);setTaskRelatedId("")}}/><FormControl fullWidth><InputLabel>Seleccionar {taskRelation.toLowerCase()}</InputLabel><Select label={"Seleccionar "+taskRelation.toLowerCase()} value={taskRelatedId} onChange={e=>setTaskRelatedId(e.target.value)}>{([...(taskRelation==="Cliente"&&client?[{id:client.id,label:client.name}]:[]),...(taskRelation==="Visita"?visits.map(v=>({id:v.id,label:v.label})):[]),...(taskRelation==="Cotización"?[{id:"COT-854",label:"Cotización de ejemplo"}]:[]),...(taskRelation==="Pedido"?[{id:"PED-741",label:"Pedido de ejemplo"}]:[])]).filter(v=>[v.id,v.label].join(" ").toLowerCase().includes(taskRelationQuery.toLowerCase())).map(v=><MenuItem key={v.id} value={v.id}>{v.label} · {v.id}</MenuItem>)}</Select></FormControl>{taskRelatedId&&<Alert severity="success">{taskRelation==="Cliente"?client?.name:taskRelation==="Visita"?visits.find(v=>v.id===taskRelatedId)?.label:taskRelation==="Cotización"?"Cotización de ejemplo":"Pedido de ejemplo"} · {taskRelatedId}</Alert>}<Typography variant="caption" color="text.secondary">Registros de demostración; no hay conexión con la base de datos.</Typography></>}
-<TextField required type="date" label="Fecha de vencimiento" InputLabelProps={{shrink:true}} value={taskDue} onChange={e=>setTaskDue(e.target.value)}/>
-<TextField multiline minRows={3} label="Detalle / instrucciones" value={taskDetail} onChange={e=>setTaskDetail(e.target.value)}/>
-</Stack></DialogContent><DialogActions><Button onClick={()=>setTaskOpen(false)}>Cancelar</Button><Button variant="contained" onClick={createTask}>Crear tarea</Button></DialogActions>
-</Dialog>
+<TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={client?tasksContext.data.owners[client.id]||"Luis Galván":"Luis Galván"} link={client?{clientId:client.id,client:client.name,address:client.address}:undefined} onCreated={()=>setNotice("Tarea guardada. Consúltala en Mis Tareas.")}/>
 <EventDetailDialog />
 <EventFormDialog />
 <CancelEventDialog />
