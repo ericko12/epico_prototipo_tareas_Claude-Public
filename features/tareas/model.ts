@@ -7,7 +7,7 @@ export const SELLERS=['Luis Galván','Yuridia Torres','Asesor comercial','Alicia
 export const sellerName=(name:string)=>name==='Luis Galvan'?'Luis Galván':name==='Yuridia Maribel Torres'?'Yuridia Torres':name;
 export const localDay=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 export const uid=()=>globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
-export type Link={clientId:string;client:string;address:string;visitId?:string;visitStatus?:string;defaultOwner?:string};
+export type Link={clientId:string;client:string;address:string;addressId?:string;visitId?:string;eventId?:string;visitStatus?:string;defaultOwner?:string};
 const BASE_CLIENTS:Link[]=[
 {clientId:'207',client:'REFACCIONARIA DEL BAJÍO',address:'Av. Constituyentes, Querétaro'},
 {clientId:'315',client:'TALLER SAN JOSÉ',address:'Col. Centro, Guadalajara'},
@@ -28,7 +28,7 @@ export const overdue=(t:Task,now:string)=>isOpen(t)&&t.due<now;
 export const managers=(r:Role)=>r.startsWith('Gerente');
 export function actorFor(role:Role,seller:string){return role==='Asesor'?seller:role;}
 export function allowedFor(role:Role,actor:string){return role==='Asesor'?[actor]:managers(role)?[actor,...SELLERS,...(role==='Gerente nacional'?['Gerente regional','Gerente territorial']:role==='Gerente territorial'?['Gerente regional']:[])]:role==='Otra área autorizada'?SELLERS:[];}
-export const canSee=(t:Task,actor:string,role:Role)=>t.assigned===actor||managers(role)&&allowedFor(role,actor).includes(t.assigned);
+export const canSee=(t:Task,actor:string,role:Role)=>t.assigned===actor||t.creator===actor||managers(role)&&allowedFor(role,actor).includes(t.assigned);
 export const canManage=(t:Task,actor:string,role:Role)=>managers(role)&&allowedFor(role,actor).includes(t.assigned);
 export function fileError(file:{name:string;size:number},count:number){
  const ext=file.name.split('.').pop()?.toLowerCase()||'';
@@ -50,6 +50,10 @@ export function occurrence(start:string,repeat:Repeat,index:number){
 }
 export function validateForm(f:Form){
  if(!f.subject.trim()||!f.type||!f.assigned||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(f.due))return 'Completa asunto, tipo, responsable y vencimiento.';
+ if(f.subject.length>255)return 'El asunto no puede superar los 255 caracteres.';
+ if(f.detail.length>4000)return 'El detalle no puede superar los 4000 caracteres.';
+ if(f.comment.length>4000)return 'El comentario no puede superar los 4000 caracteres.';
+ if(f.due<`${localDay()}T${new Date().toTimeString().slice(0,5)}`)return 'Selecciona una fecha y hora de vencimiento posterior a la actual.';
  if(f.repeat){const r=f.repeat;if(!Number.isInteger(r.every)||r.every<1)return 'El intervalo debe ser un entero mayor a cero.';if(r.end==='cantidad'&&(!Number.isInteger(r.count)||r.count<1||r.count>500))return 'Usa de 1 a 500 repeticiones en este simulador.';if(r.end==='fecha'&&(!r.until||r.until<f.due.slice(0,10)))return 'La fecha final debe ser igual o posterior al inicio.';}
  return '';
 }
