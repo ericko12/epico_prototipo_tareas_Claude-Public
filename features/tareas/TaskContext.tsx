@@ -1,9 +1,9 @@
 'use client';
 import {createContext,useContext,useEffect,useRef,useState,ReactNode} from 'react';
 import {Task,Series,Role,Form,TYPES,CLIENTS,SELLERS,localDay,uid,blank,taskFrom,generate,transfer,allowedFor,actorFor,managers} from './model';
-type Data={tasks:Task[];series:Series[];types:string[];owners:Record<string,string>};
+type Data={tasks:Task[];series:Series[];types:string[];retiredTypes?:string[];suggestedSubjects?:Record<string,string[]>;owners:Record<string,string>};
 const KEY='epico-tareas-v3';
-function seed():Data{const f=blank(SELLERS[0]);return {tasks:[{...taskFrom({...f,subject:'Enviar propuesta comercial',type:'Creación propuesta',due:`${localDay()}T09:00`,link:CLIENTS[0]},SELLERS[0]),id:'demo-1'},{...taskFrom({...f,subject:'Entregar material publicitario',type:'Entrega apoyo Trade Marketing',assigned:SELLERS[1],link:CLIENTS[1]},'Otra área autorizada'),id:'demo-2'}],series:[],types:TYPES,owners:Object.fromEntries(CLIENTS.map((c,i)=>[c.clientId,c.defaultOwner||SELLERS[0]]))};}
+function seed():Data{const f=blank(SELLERS[0]);return {tasks:[{...taskFrom({...f,subject:'Enviar propuesta comercial',type:'Creación propuesta',due:`${localDay()}T09:00`,link:CLIENTS[0]},SELLERS[0]),id:'demo-1'},{...taskFrom({...f,subject:'Entregar material publicitario',type:'Entrega apoyo Trade Marketing',assigned:SELLERS[1],link:CLIENTS[1]},'Otra área autorizada'),id:'demo-2'}],series:[],types:TYPES,retiredTypes:[],suggestedSubjects:{},owners:Object.fromEntries(CLIENTS.map((c,i)=>[c.clientId,c.defaultOwner||SELLERS[0]]))};}
 type Context={data:Data;ready:boolean;role:Role;setRole:(r:Role)=>void;seller:string;setSeller:(v:string)=>void;actor:string;simDay:string;setSimDay:(d:string)=>void;now:string;adminSeries:boolean;setAdminSeries:(v:boolean)=>void;commit:(fn:(d:Data)=>Data)=>void;create:(f:Form,creator?:string)=>void;changeOwner:(clientId:string,owner:string)=>void};
 const C=createContext<Context|null>(null);
 export const useTasks=()=>{const c=useContext(C);if(!c)throw Error('TaskProvider missing');return c;};
