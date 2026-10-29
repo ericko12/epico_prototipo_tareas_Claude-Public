@@ -27,19 +27,19 @@ function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
  const patch=(p:Partial<Form>)=>setForm(old=>old?{...old,...p}:old);
  const repeatPatch=(p:Partial<Repeat>)=>patch({repeat:{...form.repeat!,...p}});
  const save=()=>{const message=validateForm(form);if(message){setError(message);return;}setSaving(true);try{create(form,user);suppressed.current=true;localStorage.removeItem(key);onCreated?.();onClose();}catch(e){setError((e as Error).message);}finally{setSaving(false);}};
- const permitted=(r:Link)=>choices.includes(data.owners[r.clientId]||user);
+ const permitted=(r:Link)=>role==='Otra área autorizada'||choices.includes(r.defaultOwner||data.owners[r.clientId]||user);
  const liveVisits:Link[]=Object.entries(agenda.profiles).filter(([,p])=>choices.includes(sellerName(p.label))).flatMap(([id,p])=>p.events.filter(e=>e.activityType==='visit').map(e=>({clientId:CLIENTS.find(c=>c.client.toLowerCase()===e.title.toLowerCase())?.clientId||clientIds[e.title]||'CLIENTE-'+e.title,client:e.title,address:e.address,visitId:id+':'+e.id,visitStatus:e.status})));
  const options=[...CLIENTS,...VISITS,...liveVisits].filter(permitted);
  return <Dialog open onClose={onClose} fullWidth maxWidth="sm"><DialogTitle>{checkout?'COMPROMISO DE LA VISITA':'CREAR TAREA'}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>
- <Alert severity="info">Comentario y evidencia opcionales. Borrador recuperable en este navegador; envío manual con conexión.</Alert>
+ <Alert severity="info">Detalle y evidencia opcionales. El comentario de resultado se captura al completar, no como conversación. Borrador recuperable en este navegador.</Alert>
  {checkout&&<Alert severity="success">Cliente y visita de origen precargados. Puedes volver y finalizar la visita aunque no guardes la tarea.</Alert>}
- <TextField required label="Asunto" value={form.subject} onChange={e=>patch({subject:e.target.value})}/>
+ <TextField required label="Asunto" inputProps={{maxLength:255}} helperText="Puedes escribir un asunto libremente. Asuntos sugeridos: pendiente de catálogo administrable." value={form.subject} onChange={e=>patch({subject:e.target.value})}/>
  <Autocomplete options={data.types} value={form.type} onChange={(_,v)=>patch({type:v||''})} renderInput={params=><TextField {...params} required label="Tipo de tarea"/>}/>
  <TextField select required label="Asignado a" disabled={choices.length<2} value={form.assigned} onChange={e=>patch({assigned:e.target.value})}>{choices.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
  {link?<Alert severity="info">{link.client} · ID {link.clientId}{link.visitId?` · Visita ${link.visitId}`:''} · {link.address}</Alert>:<Autocomplete options={options} value={form.link||null} isOptionEqualToValue={(a,b)=>a.clientId===b.clientId&&a.visitId===b.visitId} getOptionLabel={r=>`${r.visitId?'Visita '+r.visitId+' · '+r.visitStatus:'Cliente '+r.clientId} · ${r.client} · ${r.address}`} onChange={(_,v)=>patch({link:v||undefined,...(role==='Otra área autorizada'&&v?{assigned:data.owners[v.clientId]||form.assigned}:{})})} renderInput={params=><TextField {...params} label="Cliente o visita (opcional)" helperText="Incluye visitas futuras, en curso, realizadas y canceladas del alcance autorizado."/>}/>}
- <TextField required type="datetime-local" label={form.repeat?'Primera repetición / vencimiento':'Vencimiento'} InputLabelProps={{shrink:true}} value={form.due} onChange={e=>patch({due:e.target.value})}/>
- <TextField multiline minRows={2} label="Detalle / instrucciones (opcional)" value={form.detail} onChange={e=>patch({detail:e.target.value})}/>
- <TextField multiline minRows={2} label="Comentario (opcional)" value={form.comment} onChange={e=>patch({comment:e.target.value})}/>
+ <TextField required type="datetime-local" label={form.repeat?'Primera repetición / vencimiento':'Vencimiento'} InputLabelProps={{shrink:true}} inputProps={{min:`${localDay()}T${new Date().toTimeString().slice(0,5)}`}} value={form.due} onChange={e=>patch({due:e.target.value})}/>
+ <TextField multiline minRows={2} label="Detalle / instrucciones (opcional)" inputProps={{maxLength:4000}} value={form.detail} onChange={e=>patch({detail:e.target.value})}/>
+ 
  <Attachments value={form.attachments} onChange={attachments=>patch({attachments})} onBusy={setBusy}/>
  <FormControlLabel control={<Checkbox checked={!!form.repeat} onChange={(_,checked)=>patch({repeat:checked?{every:1,unit:'semanas',end:'cantidad',count:4,until:localDay(),zone:Intl.DateTimeFormat().resolvedOptions().timeZone}:undefined})}/>} label="Repetir tarea"/>
  {form.repeat&&<Stack spacing={2}><Stack direction="row" spacing={1}><TextField label="Cada" type="number" inputProps={{min:1,step:1}} value={form.repeat.every} onChange={e=>repeatPatch({every:Number(e.target.value)})}/><TextField select label="Unidad" value={form.repeat.unit} onChange={e=>repeatPatch({unit:e.target.value as Repeat['unit']})}>{['días','semanas','meses'].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField></Stack>
