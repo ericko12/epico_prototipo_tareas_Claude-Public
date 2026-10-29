@@ -2,6 +2,7 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import DiagnosticoDemo from "./DiagnosticoDemo";
+import ParqueVehicularAccess from "@/features/parqueVehicular/infrastructure/ui/ParqueVehicularAccess";
 import ClientList,{type ClientListItem} from "./ClientList";
 import {useAgenda} from "@/features/agenda/application/AgendaContext";
 import {EventDetailDialog,EventFormDialog,CancelEventDialog} from "@/features/agenda/infrastructure/ui/AgendaDialogs";
@@ -85,7 +86,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Stack direction="row" spacing={1} alignItems="center"><Box sx={{"& svg":{fontSize:19},color:"#222"}}>{ico}</Box><Typography fontWeight={700} fontSize={14} noWrap>{k}</Typography></Stack>
 <Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
 </Box>
-<Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={openTask}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>
+{client.id==="529"?<ParqueVehicularAccess key={client.id} clientId={client.id} onCreateTask={openTask}/>:(<Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={openTask}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>)}
 </>:<DiagnosticoDemo client={client}/>}
 </>}
 <TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={client?tasksContext.data.owners[client.id]||"Luis Galván":"Luis Galván"} link={client?{clientId:client.id,client:client.name,address:client.address}:undefined} onCreated={()=>setNotice("Tarea guardada. Consúltala en Mis Tareas.")}/>
