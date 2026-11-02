@@ -13,8 +13,8 @@ import { clientId, normalize } from "@/features/agenda/domain/agenda.data";
 import { ActivityType } from "@/features/agenda/domain/agenda.types";
 import { EpicoLabel, Hint, statusVariant } from "./shared";
 
-import {TaskComposer} from "@/features/tareas/TaskComposer";
-import {CLIENTS,sellerName} from "@/features/tareas/model";
+import {TaskComposer,Attachments} from "@/features/tareas/TaskComposer";
+import {CLIENTS,sellerName,isOpen,overdue,Task} from "@/features/tareas/model";
 import {useTasks} from "@/features/tareas/TaskContext";
 import {clientIds} from "@/features/agenda/domain/agenda.data";
 
@@ -98,6 +98,8 @@ export const EventDetailDialog = () => {
   const [result, setResult] = useState("");
   const [findings, setFindings] = useState("");
   const [taskOpen,setTaskOpen]=useState(false);
+  const [closingTask,setClosingTask]=useState<string|null>(null);
+  const [taskError,setTaskError]=useState("");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   useEffect(() => {
     setObjective(e?.objective ?? "");
@@ -121,6 +123,15 @@ export const EventDetailDialog = () => {
   const canCheckOut = a.role === "advisor" && e.status === "Check-in activo";
   const doCheckOut = () => setCheckoutError(a.completeCheckOut(e, { objective, result, findings }));
   const client=CLIENTS.find(c=>c.client.toLocaleLowerCase("es")===e.title.toLocaleLowerCase("es"));
+  const clientId=client?.clientId||clientIds[e.title]||"CLIENTE-"+e.title;
+  const advisor=sellerName(a.profile.label);
+  const pendingClientTasks=taskContext.data.tasks.filter(x=>isOpen(x)&&x.link?.clientId===clientId&&x.assigned===advisor);
+  const confirmTaskComplete=(task:Task)=>{
+    if(task.evidenceRequired&&!task.attachments.length){setTaskError('Adjunta evidencia antes de completar esta tarea.');return;}
+    const closedAt=new Date().toLocaleString('es-MX');
+    taskContext.commit(d=>({...d,tasks:d.tasks.map(x=>x.id===task.id?{...x,status:'Completada',cycles:[...(x.cycles||[]),{closedAt,closedBy:advisor,comment:x.comment,attachments:[...x.attachments]}],history:[...x.history,'Completada desde el Check-out · '+advisor+' · '+closedAt]}:x)}));
+    setClosingTask(null);setTaskError('');
+  };
   return (
     <>
     <TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={taskContext.data.owners[client?.clientId||clientIds[e.title]]||sellerName(a.profile.label)} checkout link={{clientId:client?.clientId||clientIds[e.title]||"CLIENTE-"+e.title,client:e.title,address:e.address,visitId:a.owner+":"+String(e.id),visitStatus:e.status}}/>
@@ -208,7 +219,25 @@ export const EventDetailDialog = () => {
               value={findings}
               onChange={(x) => setFindings(x.target.value)}
             />
-            <Button variant="outlined" onClick={()=>setTaskOpen(true)}>Crear tarea de seguimiento (opcional)</Button>
+            <Box sx={{p:1.5,border:'1px solid',borderColor:'divider',borderRadius:1}}>
+              <Typography fontWeight={700}>Tareas pendientes del cliente ({pendingClientTasks.length})</Typography>
+              <Typography variant="caption">Puedes revisar y completar tareas tuyas, pero no es obligatorio para finalizar la visita.</Typography>
+              {!pendingClientTasks.length&&<Typography variant="body2">No tienes tareas pendientes para este cliente.</Typography>}
+              {pendingClientTasks.map(task=><Box key={task.id} sx={{py:1,borderBottom:'1px solid',borderColor:'divider'}}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Checkbox checked={false} aria-label={'Completar '+task.subject} onChange={()=>{setClosingTask(task.id);setTaskError('');}}/>
+                  <Box><Typography variant="body2">{task.subject}</Typography><Typography variant="caption">{overdue(task,taskContext.now)?'Vencida':'Pendiente'} · Evidencia {task.evidenceRequired?'obligatoria':'opcional'}</Typography></Box>
+                </Stack>
+                {closingTask===task.id&&<Stack spacing={1} sx={{ml:4,mt:1}}>
+                  <Attachments actorName={advisor} value={task.attachments} onChange={attachments=>taskContext.commit(d=>({...d,tasks:d.tasks.map(x=>x.id===task.id?{...x,attachments,history:[...x.history,attachments.length<task.attachments.length?'Evidencia retirada antes del cierre · '+advisor:'Evidencia adjuntada · '+advisor]}:x)}))}/>
+                  <Button variant="contained" size="small" onClick={()=>confirmTaskComplete(task)}>Confirmar tarea completada</Button>
+                  <Button size="small" onClick={()=>setClosingTask(null)}>Volver sin completar</Button>
+                </Stack>}
+              </Box>)}
+              {taskError&&<Alert severity="warning">{taskError}</Alert>}
+            </Box>
+            <Typography variant="subtitle2">¿Quedó algún acuerdo o seguimiento nuevo?</Typography>
+            <Button variant="outlined" onClick={()=>setTaskOpen(true)}>Sí, crear tarea de seguimiento (opcional)</Button>
             <Typography variant="caption">Puedes finalizar la visita aunque no guardes una tarea; el borrador se conserva.</Typography>
             {checkoutError && <Alert severity="error" variant="outlined">{checkoutError}</Alert>}
           </Stack>
