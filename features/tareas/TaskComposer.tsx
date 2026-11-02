@@ -9,8 +9,35 @@ import {clientIds} from '@/features/agenda/domain/agenda.data';
 export function Attachments({value,onChange,disabled=false,onBusy,actorName}:{value:Attachment[];onChange:(a:Attachment[])=>void;disabled?:boolean;onBusy?:(b:boolean)=>void;actorName?:string}){
  const {actor}=useTasks();const [error,setError]=useState(''),[busy,setBusy]=useState(false);const current=useRef(value);current.current=value;const locked=useRef(disabled);locked.current=disabled;
  const upload=async(files:File[])=>{setBusy(true);onBusy?.(true);const errors:string[]=[];let next=[...current.current];try{for(const f of files){const problem=fileError(f,next.length);if(problem){errors.push(`${f.name}: ${problem}`);continue;}try{const meta=await saveFile(f,actorName||actor);if(locked.current){errors.push('La tarea ya no admite cambios. El archivo no se asoció.');break;}next=[...next,meta];onChange(next);}catch{errors.push(`${f.name}: no pudimos guardar el archivo. Reintenta.`);}}}finally{setBusy(false);onBusy?.(false);setError(errors.join(' '));}};
- return <Stack spacing={1}><Typography fontWeight={700}>Adjuntos / evidencia</Typography><Typography variant="caption">Hasta 10 archivos · JPG/JPEG/PNG: 10 MB · PDF/DOCX/XLSX: 20 MB. Guardados solo en este navegador.</Typography>
- {!disabled&&<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Button component="label" variant="outlined" disabled={busy}>Tomar fotografía<input aria-label="Tomar fotografía" hidden type="file" accept="image/*" capture="environment" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button><Button component="label" variant="outlined" disabled={busy}>Elegir de galería o archivos<input aria-label="Adjuntar archivos" hidden multiple type="file" accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button></Stack>}
+ const nativeStamp=async (files:File[])=>{
+  const file=files[0];if(!file)return;
+  setBusy(true);onBusy?.(true);
+  try{
+   const coords=await new Promise<GeolocationCoordinates>((resolve,reject)=>{
+    if(!navigator.geolocation){reject(Error('Ubicación no disponible'));return;}
+    navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),reject,{enableHighAccuracy:true,timeout:9000,maximumAge:0});
+   });
+   const bitmap=await createImageBitmap(file);
+   const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+   const ctx=canvas.getContext('2d');if(!ctx)throw Error('No se pudo procesar la fotografía.');
+   ctx.drawImage(bitmap,0,0);bitmap.close();
+   const font=Math.max(20,Math.round(canvas.width/38));
+   const padding=Math.round(font*.7);
+   const lines=[new Date().toLocaleString('es-MX',{dateStyle:'short',timeStyle:'medium'}),`Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)}`];
+   ctx.font=`bold ${font}px sans-serif`;
+   const width=Math.max(...lines.map(x=>ctx.measureText(x).width))+padding*2;
+   const height=font*lines.length*1.35+padding*2;
+   ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(0,Math.max(0,canvas.height-height),Math.min(canvas.width,width),height);
+   ctx.fillStyle='#fff';lines.forEach((line,i)=>ctx.fillText(line,padding,canvas.height-height+padding+font*(i+1.08)));
+   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo generar la fotografía.')),'image/jpeg',.88));
+   const stamped=new File([blob],`epico-fecha-ubicacion-${Date.now()}.jpg`,{type:'image/jpeg'});
+   setBusy(false);onBusy?.(false);
+   await upload([stamped]);
+  }catch(e){setError('No se generó foto con fecha y ubicación: '+((e as Error).message||'permiso denegado')+'. Puedes utilizar la galería o la cámara normal.');}
+  finally{setBusy(false);onBusy?.(false);}
+ };
+ return <Stack spacing={1}><Typography fontWeight={700}>Adjuntos / evidencia</Typography><Typography variant="caption">Hasta 10 archivos · JPG/JPEG/PNG: 10 MB · PDF/DOCX/XLSX: 20 MB. Guardados solo en este navegador. La opción con ubicación solicita permiso del dispositivo; si no se concede, permite usar cámara normal o galería sin inventar coordenadas.</Typography>
+ {!disabled&&<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Button component="label" variant="outlined" disabled={busy}>Tomar fotografía<input aria-label="Tomar fotografía" hidden type="file" accept="image/*" capture="environment" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button><Button component="label" variant="outlined" disabled={busy}>Tomar con fecha y ubicación<input aria-label="Fotografía con timestamp y ubicación" hidden type="file" accept="image/*" capture="environment" onChange={e=>{void nativeStamp(Array.from(e.target.files||[]));e.target.value="";}}/></Button><Button component="label" variant="outlined" disabled={busy}>Elegir de galería o archivos<input aria-label="Adjuntar archivos" hidden multiple type="file" accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button></Stack>}
  {busy&&<Alert severity="info">Guardando archivos…</Alert>}{error&&<Alert severity="error">{error}</Alert>}
  {value.map(a=><Stack key={a.id} direction="row" alignItems="center" spacing={1}><Button sx={{overflowWrap:'anywhere',textAlign:'left'}} onClick={()=>void downloadFile(a).catch(e=>setError(e.message))}>{a.name}</Button><Typography variant="caption">{(a.size/1024/1024).toFixed(2)} MB · {a.uploadedBy||'Usuario no registrado'} · {a.uploadedAt?new Date(a.uploadedAt).toLocaleString('es-MX'):'Fecha no registrada'}</Typography>{!disabled&&<Button aria-label={`Eliminar ${a.name}`} disabled={busy} color="error" onClick={()=>onChange(value.filter(x=>x.id!==a.id))}>Eliminar</Button>}</Stack>)}
  </Stack>;
