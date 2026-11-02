@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Alert,Autocomplete,Button,Checkbox,Dialog,DialogActions,DialogContent,DialogTitle,FormControlLabel,MenuItem,Stack,TextField,Typography} from '@mui/material';
-import {Attachment,blank,CLIENTS,fileError,Form,Link,Repeat,validateForm,VISITS,allowedFor,localDay,sellerName} from './model';
+import {Attachment,blank,CLIENTS,fileError,Form,Link,Repeat,validateForm,VISITS,allowedFor,localDay,sellerName,SELLERS} from './model';
 import {saveFile,downloadFile} from './storage';
 import {useTasks} from './TaskContext';
 import {useAgenda} from '@/features/agenda/application/AgendaContext';
@@ -60,7 +60,7 @@ function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
  const options=[...CLIENTS,...VISITS,...liveVisits].filter(permitted);
  const settings=data.typeSettings?.[form.type];const availableTypes=data.types;
  const suggestions=settings?.suggestions||data.suggestedSubjects?.[form.type]||[];
- const canAssign=!creator&&!checkout&&(role.startsWith('Gerente')||role==='Otra área autorizada'||role==='Administrador');const contextualLocked=!!link&&!canAssign;
+ const canAssign=!creator&&!checkout&&(role.startsWith('Gerente')||role==='Otra área autorizada'||role==='Administrador');const contextualLocked=!!link&&!canAssign;const teamChoices=SELLERS.filter(x=>choices.includes(x)&&x!==actor);
  const catalogRequired=!!settings?.evidenceRequired;
  const assignedToOther=multi||canAssign&&form.assigned!==actor;
  const effectiveRequired=catalogRequired||!!form.evidenceRequired;
@@ -70,8 +70,8 @@ function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
  <Autocomplete freeSolo options={suggestions} inputValue={form.subject} onInputChange={(_,value)=>patch({subject:value})} renderInput={p=><TextField {...p} required label="Asunto" inputProps={{...p.inputProps,maxLength:255}} helperText="Elige una sugerencia o escribe un asunto libremente."/>}/>
  <Autocomplete options={availableTypes} value={availableTypes.includes(form.type)?form.type:null} onChange={(_,v)=>patch({type:v||'',subject:'',evidenceRequired:false})} renderInput={params=><TextField {...params} required label="Tipo de tarea"/>}/>
  {!creator&&!checkout&&(role.startsWith('Gerente')||role==='Otra área autorizada'||role==='Administrador')&&<FormControlLabel control={<Checkbox checked={multi} onChange={(_,v)=>{setMulti(v);patch({link:undefined,repeat:undefined});setAssignees([]);}}/>} label="Asignar a varios asesores (una tarea independiente por asesor)"/>}
- {multi&&<FormControlLabel control={<Checkbox checked={choices.filter(x=>x!==actor).length>0&&choices.filter(x=>x!==actor).every(x=>assignees.includes(x))} onChange={(_,v)=>setAssignees(v?choices.filter(x=>x!==actor):[])} />} label="Todo mi equipo (puedes desmarcar asesores)"/>}
- {multi?<Autocomplete multiple options={choices.filter(x=>x!==actor)} value={assignees} onChange={(_,v)=>setAssignees(v)} renderInput={p=><TextField {...p} required label="Asesores" helperText={`${assignees.length} tareas individuales; sin cliente ni dirección en esta fase.`}/>}/>:<TextField select required label="Asignado a" disabled={contextualLocked||choices.length<2} value={form.assigned} onChange={e=>patch({assigned:e.target.value,evidenceRequired:e.target.value===actor?false:form.evidenceRequired})}>{choices.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>}
+ {multi&&role.startsWith('Gerente')&&<FormControlLabel control={<Checkbox checked={teamChoices.length>0&&teamChoices.every(x=>assignees.includes(x))} onChange={(_,v)=>setAssignees(v?teamChoices:[])} />} label="Todo mi equipo (puedes desmarcar asesores)"/>}
+ {multi?<Autocomplete multiple options={teamChoices} value={assignees} onChange={(_,v)=>setAssignees(v)} renderInput={p=><TextField {...p} required label="Asesores" helperText={`${assignees.length} tareas individuales; sin cliente ni dirección en esta fase.`}/>}/>:<TextField select required label="Asignado a" disabled={contextualLocked||choices.length<2} value={form.assigned} onChange={e=>patch({assigned:e.target.value,evidenceRequired:e.target.value===actor?false:form.evidenceRequired})}>{choices.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>}
  {link&&!multi&&<Alert severity="info">Cliente fijo por contexto. Responsable precargado desde cartera a nivel cliente; solo un usuario con permiso de asignación puede cambiarlo.</Alert>}
  {multi?<Alert severity="info">La asignación múltiple genera tareas independientes. La carga por cliente y dirección está fuera de esta fase.</Alert>:link?<Alert severity="info">{link.client} · ID {link.clientId}{link.visitId?` · Visita ${link.visitId}`:''} · {link.address}</Alert>:<Autocomplete options={options} value={form.link||null} isOptionEqualToValue={(a,b)=>a.clientId===b.clientId&&a.visitId===b.visitId} getOptionLabel={r=>`${r.visitId?'Visita '+r.visitId+' · '+r.visitStatus:'Cliente '+r.clientId} · ${r.client} · ${r.address}`} onChange={(_,v)=>patch({link:v||undefined,...(role==='Otra área autorizada'&&v?{assigned:data.owners[v.clientId]||form.assigned}:{})})} renderInput={params=><TextField {...params} label="Cliente o visita (opcional)" helperText="Incluye visitas futuras, en curso, realizadas y canceladas del alcance autorizado."/>}/>}
  {role==='Otra área autorizada'&&!creator&&<TextField label="Área que genera la tarea (informativa)" placeholder="Ej. Operaciones Retail / Telemarketing" value={form.creatorArea||''} onChange={e=>patch({creatorArea:e.target.value})} helperText="Identifica el origen de esta asignación; no limita permisos."/>}
