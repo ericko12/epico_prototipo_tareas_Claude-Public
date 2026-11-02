@@ -22,7 +22,7 @@ export function TaskProvider({children}:{children:ReactNode}){
   if(!ref.current.types.includes(f.type))throw Error('Este tipo ya no está disponible. Selecciona otro.');
   const cfg=ref.current.typeSettings?.[f.type];if(creator===actor&&cfg?.roles?.length&&!cfg.roles.includes(role))throw Error('El tipo no está habilitado para tu rol.');
   commit(d=>{if(d.tasks.some(t=>t.id===f.id)||d.series.some(s=>s.id===f.id))return d;
-   if(f.repeat){const series=[...d.series,{id:f.id,creator,template:f,active:true,history:['Serie creada']}];return {...d,series,tasks:generate(series,d.tasks,simDay)};}
+   if(f.repeat){const series=[...d.series,{id:f.id,creator,template:{...f,evidenceRequired:!!d.typeSettings?.[f.type]?.evidenceRequired},active:true,history:['Serie creada']}];return {...d,series,tasks:generate(series,d.tasks,simDay)};}
    return {...d,tasks:[taskFrom(f,creator,!!d.typeSettings?.[f.type]?.evidenceRequired),...d.tasks]};
   });
  };
