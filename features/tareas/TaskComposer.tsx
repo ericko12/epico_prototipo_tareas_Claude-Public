@@ -9,36 +9,72 @@ import {clientIds} from '@/features/agenda/domain/agenda.data';
 export function Attachments({value,onChange,disabled=false,onBusy,actorName}:{value:Attachment[];onChange:(a:Attachment[])=>void;disabled?:boolean;onBusy?:(b:boolean)=>void;actorName?:string}){
  const {actor}=useTasks();const [error,setError]=useState(''),[busy,setBusy]=useState(false);const current=useRef(value);current.current=value;const locked=useRef(disabled);locked.current=disabled;
  const upload=async(files:File[])=>{setBusy(true);onBusy?.(true);const errors:string[]=[];let next=[...current.current];try{for(const f of files){const problem=fileError(f,next.length);if(problem){errors.push(`${f.name}: ${problem}`);continue;}try{const meta=await saveFile(f,actorName||actor);if(locked.current){errors.push('La tarea ya no admite cambios. El archivo no se asoció.');break;}next=[...next,meta];onChange(next);}catch{errors.push(`${f.name}: no pudimos guardar el archivo. Reintenta.`);}}}finally{setBusy(false);onBusy?.(false);setError(errors.join(' '));}};
+ const [stampedPreview,setStampedPreview]=useState<string|null>(null);
+ useEffect(()=>()=>{if(stampedPreview)URL.revokeObjectURL(stampedPreview);},[stampedPreview]);
  const nativeStamp=async (files:File[])=>{
   const file=files[0];if(!file)return;
-  setBusy(true);onBusy?.(true);
+  if(busy)return;
+  setBusy(true);onBusy?.(true);setError('');
+  let sourceUrl:string|undefined;
   try{
-   const coords=await new Promise<GeolocationCoordinates>((resolve,reject)=>{
-    if(!navigator.geolocation){reject(Error('Ubicación no disponible'));return;}
-    navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),reject,{enableHighAccuracy:true,timeout:9000,maximumAge:0});
+   if(!window.isSecureContext)throw Error('La ubicación solo funciona en un sitio HTTPS seguro.');
+   if(!navigator.geolocation)throw Error('Este navegador no permite obtener la ubicación.');
+   const coordinates=await new Promise<GeolocationCoordinates>((resolve,reject)=>{
+    navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),reject,{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+   }).catch((e:GeolocationPositionError)=>{
+    if(e.code===1)throw Error('Permiso de ubicación denegado. Actívalo en los permisos de este sitio.');
+    if(e.code===2)throw Error('No se pudo determinar tu ubicación. Activa GPS e inténtalo nuevamente.');
+    throw Error('La ubicación tardó demasiado. Revisa el GPS y vuelve a intentar.');
    });
-   const bitmap=await createImageBitmap(file);
-   const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
-   const ctx=canvas.getContext('2d');if(!ctx)throw Error('No se pudo procesar la fotografía.');
-   ctx.drawImage(bitmap,0,0);bitmap.close();
-   const font=Math.max(20,Math.round(canvas.width/38));
-   const padding=Math.round(font*.7);
-   const lines=[new Date().toLocaleString('es-MX',{dateStyle:'short',timeStyle:'medium'}),`Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)}`];
-   ctx.font=`bold ${font}px sans-serif`;
-   const width=Math.max(...lines.map(x=>ctx.measureText(x).width))+padding*2;
-   const height=font*lines.length*1.35+padding*2;
-   ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(0,Math.max(0,canvas.height-height),Math.min(canvas.width,width),height);
-   ctx.fillStyle='#fff';lines.forEach((line,i)=>ctx.fillText(line,padding,canvas.height-height+padding+font*(i+1.08)));
-   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo generar la fotografía.')),'image/jpeg',.88));
-   const stamped=new File([blob],`epico-fecha-ubicacion-${Date.now()}.jpg`,{type:'image/jpeg'});
+   if(!Number.isFinite(coordinates.latitude)||!Number.isFinite(coordinates.longitude))throw Error('Las coordenadas no son válidas.');
+   // HTMLImageElement funciona en navegadores donde createImageBitmap no está disponible.
+   sourceUrl=URL.createObjectURL(file);
+   const img=await new Promise<HTMLImageElement>((resolve,reject)=>{
+    const candidate=new Image();
+    candidate.onload=()=>resolve(candidate);
+    candidate.onerror=()=>reject(Error('El formato de la imagen no es compatible. Prueba con JPG o PNG.'));
+    candidate.src=sourceUrl!;
+   });
+   const canvas=document.createElement('canvas');
+   const scale=Math.min(1,2200/Math.max(img.naturalWidth,img.naturalHeight));
+   canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+   canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+   const ctx=canvas.getContext('2d');
+   if(!ctx)throw Error('No se pudo preparar la imagen.');
+   ctx.drawImage(img,0,0,canvas.width,canvas.height);
+   const takenAt=new Date();
+   const lines=[
+    'ÉPICO · Evidencia fotográfica',
+    'Fecha y hora: '+takenAt.toLocaleString('es-MX',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}),
+    'Coordenadas: '+coordinates.latitude.toFixed(6)+', '+coordinates.longitude.toFixed(6)
+   ];
+   const font=Math.max(16,Math.round(canvas.width/44));
+   ctx.font='bold '+font+'px Arial, sans-serif';
+   const pad=Math.max(10,Math.round(font*.7));
+   const lineHeight=Math.round(font*1.35);
+   const panelHeight=pad*2+lines.length*lineHeight;
+   ctx.fillStyle='rgba(0,0,0,0.80)';
+   ctx.fillRect(0,Math.max(0,canvas.height-panelHeight),canvas.width,Math.min(panelHeight,canvas.height));
+   ctx.fillStyle='#FFFFFF';
+   lines.forEach((line,i)=>ctx.fillText(line,pad,Math.max(font,canvas.height-panelHeight+pad+lineHeight*(i+0.7)),Math.max(1,canvas.width-pad*2)));
+   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo convertir la fotografía.')),'image/jpeg',.83));
+   if(blob.size>10*1024*1024)throw Error('La imagen sellada supera 10 MB; intenta con una resolución menor.');
+   const stamped=new File([blob],'epico-timestamp-'+takenAt.getTime()+'.jpg',{type:'image/jpeg',lastModified:takenAt.getTime()});
+   // La vista previa usa exactamente los bytes que se adjuntan.
+   if(stampedPreview)URL.revokeObjectURL(stampedPreview);
+   setStampedPreview(URL.createObjectURL(stamped));
    setBusy(false);onBusy?.(false);
    await upload([stamped]);
-  }catch(e){setError('No se generó foto con fecha y ubicación: '+((e as Error).message||'permiso denegado')+'. Puedes utilizar la galería o la cámara normal.');}
-  finally{setBusy(false);onBusy?.(false);}
+  }catch(e){
+   setError('La fotografía con fecha y coordenadas no se adjuntó: '+((e as Error).message||'error desconocido')+' Puedes reintentar o utilizar cámara normal/galería.');
+  }finally{
+   if(sourceUrl)URL.revokeObjectURL(sourceUrl);
+   setBusy(false);onBusy?.(false);
+  }
  };
  return <Stack spacing={1}><Typography fontWeight={700}>Adjuntos / evidencia</Typography><Typography variant="caption">Hasta 10 archivos · JPG/JPEG/PNG: 10 MB · PDF/DOCX/XLSX: 20 MB. Guardados solo en este navegador. La opción con ubicación solicita permiso del dispositivo; si no se concede, permite usar cámara normal o galería sin inventar coordenadas.</Typography>
  {!disabled&&<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Button component="label" variant="outlined" disabled={busy}>Tomar fotografía<input aria-label="Tomar fotografía" hidden type="file" accept="image/*" capture="environment" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button><Button component="label" variant="outlined" disabled={busy}>Tomar con fecha y ubicación<input aria-label="Fotografía con timestamp y ubicación" hidden type="file" accept="image/*" capture="environment" onChange={e=>{void nativeStamp(Array.from(e.target.files||[]));e.target.value="";}}/></Button><Button component="label" variant="outlined" disabled={busy}>Elegir de galería o archivos<input aria-label="Adjuntar archivos" hidden multiple type="file" accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx" onChange={e=>{void upload(Array.from(e.target.files||[]));e.target.value='';}}/></Button></Stack>}
- {busy&&<Alert severity="info">Guardando archivos…</Alert>}{error&&<Alert severity="error">{error}</Alert>}
+ {busy&&<Alert severity="info">Guardando archivos…</Alert>}{error&&<Alert severity="error">{error}</Alert>}{stampedPreview&&<Stack spacing={0.5}><Typography variant="caption">Vista previa de la última foto con fecha y coordenadas</Typography><img src={stampedPreview} alt="Fotografía con fecha, hora y coordenadas incrustadas" style={{width:"100%",maxHeight:260,objectFit:"contain",borderRadius:6}}/></Stack>}
  {value.map(a=><Stack key={a.id} direction="row" alignItems="center" spacing={1}><Button sx={{overflowWrap:'anywhere',textAlign:'left'}} onClick={()=>void downloadFile(a).catch(e=>setError(e.message))}>{a.name}</Button><Typography variant="caption">{(a.size/1024/1024).toFixed(2)} MB · {a.uploadedBy||'Usuario no registrado'} · {a.uploadedAt?new Date(a.uploadedAt).toLocaleString('es-MX'):'Fecha no registrada'}</Typography>{!disabled&&<Button aria-label={`Eliminar ${a.name}`} disabled={busy} color="error" onClick={()=>onChange(value.filter(x=>x.id!==a.id))}>Eliminar</Button>}</Stack>)}
  </Stack>;
 }
