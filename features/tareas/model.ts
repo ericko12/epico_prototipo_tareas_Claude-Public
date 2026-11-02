@@ -19,16 +19,16 @@ export const CLIENTS:Link[]=Array.from(new Map([...Object.values(initialProfiles
 export const VISITS:Link[]=['Programada','En curso','Realizada','Cancelada'].map((visitStatus,i)=>({...CLIENTS[i%2],visitId:`VIS-${410+i}`,visitStatus}));
 export type Attachment={id:string;name:string;size:number;mime:string};
 export type ClosureCycle={closedAt:string;closedBy:string;comment:string;attachments:Attachment[];reopenedAt?:string;reopenReason?:string};
-export type Task={id:string;subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;status:'Pendiente'|'Completada'|'Cancelada';history:string[];reason?:string;creator:string;seriesId?:string;source:'Manual'|'Recurrente';evidenceRequired?:boolean;cycles?:ClosureCycle[]};
+export type Task={id:string;subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;status:'Pendiente'|'Completada'|'Cancelada';history:string[];reason?:string;creator:string;seriesId?:string;source:'Manual'|'Recurrente';evidenceRequired?:boolean;cycles?:ClosureCycle[];creatorArea?:string};
 export type Repeat={every:number;unit:'días'|'semanas'|'meses';end:'fecha'|'cantidad';until:string;count:number;zone:string};
-export type Form={subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;repeat?:Repeat;id:string;evidenceRequired?:boolean};
+export type Form={subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;repeat?:Repeat;id:string;evidenceRequired?:boolean;creatorArea?:string};
 export type Series={id:string;creator:string;template:Form;active:boolean;history:string[]};
 export const blank=(actor:string):Form=>({id:uid(),subject:'',type:TYPES[0],assigned:actor,due:`${localDay()}T17:00`,detail:'',comment:'',attachments:[]});
 export const isOpen=(t:Task)=>t.status==='Pendiente';
 export const overdue=(t:Task,now:string)=>isOpen(t)&&t.due<now;
 export const managers=(r:Role)=>r.startsWith('Gerente');
 export function actorFor(role:Role,seller:string){return role==='Asesor'?seller:role;}
-export function allowedFor(role:Role,actor:string){return role==='Asesor'?[actor]:managers(role)?[actor,...SELLERS,...(role==='Gerente nacional'?['Gerente regional','Gerente territorial']:role==='Gerente territorial'?['Gerente regional']:[])]:role==='Otra área autorizada'?SELLERS:[];}
+export function allowedFor(role:Role,actor:string){return role==='Administrador'?SELLERS:role==='Asesor'?[actor]:managers(role)?[actor,...SELLERS,...(role==='Gerente nacional'?['Gerente regional','Gerente territorial']:role==='Gerente territorial'?['Gerente regional']:[])]:role==='Otra área autorizada'?SELLERS:[];}
 export const canSee=(t:Task,actor:string,role:Role)=>t.assigned===actor||t.creator===actor||managers(role)&&allowedFor(role,actor).includes(t.assigned);
 export const canManage=(t:Task,actor:string,role:Role)=>managers(role)&&allowedFor(role,actor).includes(t.assigned);
 export function fileError(file:{name:string;size:number},count:number){
@@ -58,7 +58,7 @@ export function validateForm(f:Form){
  if(f.repeat){const r=f.repeat;if(!Number.isInteger(r.every)||r.every<1)return 'El intervalo debe ser un entero mayor a cero.';if(r.end==='cantidad'&&(!Number.isInteger(r.count)||r.count<1||r.count>500))return 'Usa de 1 a 500 repeticiones en este simulador.';if(r.end==='fecha'&&(!r.until||r.until<f.due.slice(0,10)))return 'La fecha final debe ser igual o posterior al inicio.';}
  return '';
 }
-export function taskFrom(f:Form,creator:string,evidenceRequired=false):Task{return {id:f.id,subject:f.subject.trim(),type:f.type,assigned:f.assigned,due:f.due,detail:f.detail,comment:f.comment,attachments:f.attachments,link:f.link,status:'Pendiente',history:[`Creada por ${creator} · ${new Date().toLocaleString('es-MX')}`],creator,source:'Manual',evidenceRequired,cycles:[]};}
+export function taskFrom(f:Form,creator:string,evidenceRequired=false):Task{return {id:f.id,subject:f.subject.trim(),type:f.type,assigned:f.assigned,due:f.due,detail:f.detail,comment:f.comment,attachments:f.attachments,link:f.link,status:'Pendiente',history:[`Creada por ${creator} · ${new Date().toLocaleString('es-MX')}`],creator,source:'Manual',evidenceRequired,cycles:[],creatorArea:f.creatorArea};}
 export function generate(series:Series[],existing:Task[],through:string){
  const result=[...existing];const ids=new Set(result.map(t=>t.id));
  for(const s of series){if(!s.active||!s.template.repeat)continue;const r=s.template.repeat;
