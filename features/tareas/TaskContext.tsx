@@ -13,8 +13,8 @@ export function TaskProvider({children}:{children:ReactNode}){
  const [role,setRole]=useState<Role>('Asesor'),[seller,setSeller]=useState(SELLERS[0]),[simDay,setSimDay]=useState(localDay()),[adminSeries,setAdminSeries]=useState(false);
  const actor=actorFor(role,seller);const now=`${simDay}T${new Date().toTimeString().slice(0,5)}`;
  const commit=(fn:(d:Data)=>Data)=>{const next=fn(ref.current);localStorage.setItem(KEY,JSON.stringify(next));ref.current=next;setData(next);};
- useEffect(()=>{try{const raw=localStorage.getItem(KEY);const next=raw?JSON.parse(raw):seed();ref.current=next;setData(next);}catch{const next=seed();ref.current=next;setData(next);}setReady(true);},[]);
- useEffect(()=>{if(!ready)return;try{const next=generate(ref.current.series,ref.current.tasks,simDay);if(next.length!==ref.current.tasks.length)commit(d=>({...d,tasks:next}));}catch{/* UI operations report storage errors. */}},[ready,simDay]);
+ useEffect(()=>{try{const raw=localStorage.getItem(KEY);const next:Data=raw?JSON.parse(raw):seed();ref.current=next;setData(next);}catch{const next=seed();ref.current=next;setData(next);}setReady(true);},[]);
+ useEffect(()=>{if(!ready)return;try{const series=ref.current.series.map(item=>item.active&&!SELLERS.includes(item.template.assigned)&&item.template.assigned!=='Gerente regional'&&item.template.assigned!=='Gerente territorial'&&item.template.assigned!=='Gerente nacional'?{...item,active:false,suspendedReason:'Responsable inactivo: se requiere reasignar y crear una nueva serie',history:[...item.history,'Suspendida por responsable inactivo']}:item);const next=generate(series,ref.current.tasks,simDay);if(next.length!==ref.current.tasks.length||series.some((x,i)=>x!==ref.current.series[i]))commit(d=>({...d,series,tasks:next}));}catch{/* UI operations report storage errors. */}},[ready,simDay]);
  const create=(f:Form,creator=actor)=>{
   if(!navigator.onLine)throw Error('Sin conexión. Conservamos el borrador; envíalo manualmente al recuperar conexión.');
   // Contextual client/checkout actions operate as the seller; they do not inherit an admin simulator role.
