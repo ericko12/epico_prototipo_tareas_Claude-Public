@@ -2,7 +2,7 @@
 // Diálogos con la misma estructura que features/common/infrastructure/ui/dialog/ModalGeneric.tsx:
 // título en mayúsculas, ícono de cierre, botón "Cerrar/Cancelar" outlined y acción principal contained.
 import { useEffect, useState } from "react";
-import { Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Stack, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Stack, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { ColorsEpico } from "@/features/common/domain/enums/ColorsEpico";
