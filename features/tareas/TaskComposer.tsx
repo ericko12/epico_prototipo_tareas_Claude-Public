@@ -20,14 +20,14 @@ export function TaskComposer(props:ComposerProps){return props.open?<Editor {...
 function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
  const {actor,role,data,create,createMany}=useTasks();const agenda=useAgenda();const user=creator||actor;const key=`epico-task-draft-v3:${user}:${checkout?'checkout:'+link?.visitId:link?.clientId||'general'}`;
  const [multi,setMulti]=useState(false),[assignees,setAssignees]=useState<string[]>([]);
- const [form,setForm]=useState<Form|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false);
+ const [form,setForm]=useState<Form|null>(null),[error,setError]=useState(''),[saving,setSaving]=useState(false);
  const suppressed=useRef(false);const choices=creator?[creator]:allowedFor(role,actor);
  useEffect(()=>{try{const raw=localStorage.getItem(key);setForm(raw?JSON.parse(raw):{...blank(user),link});}catch{setForm({...blank(user),link});setError('No se pudo recuperar el borrador anterior.');}},[key]);
  useEffect(()=>{if(form&&!suppressed.current){try{localStorage.setItem(key,JSON.stringify(form));}catch{setError('No se pudo conservar el borrador: almacenamiento lleno o no disponible.');}}},[form,key]);
  if(!form)return null;
  const patch=(p:Partial<Form>)=>setForm(old=>old?{...old,...p}:old);
  const repeatPatch=(p:Partial<Repeat>)=>patch({repeat:{...form.repeat!,...p}});
- const save=()=>{const message=validateForm(form);if(message){setError(message);return;}setSaving(true);try{if(multi){if(form.link||form.repeat)throw Error('Para asignación múltiple no selecciones cliente/visita ni repetición.');if(!assignees.length)throw Error('Selecciona al menos un asesor.');createMany(form,assignees);}else create(form,user);suppressed.current=true;localStorage.removeItem(key);onCreated?.();onClose();}catch(e){setError((e as Error).message);}finally{setSaving(false);}};
+ const save=()=>{const creationForm={...form,attachments:[]};const message=validateForm(creationForm);if(message){setError(message);return;}setSaving(true);try{if(multi){if(creationForm.link||creationForm.repeat)throw Error('Para asignación múltiple no selecciones cliente/visita ni repetición.');if(!assignees.length)throw Error('Selecciona al menos un asesor.');createMany(creationForm,assignees);}else create(creationForm,user);suppressed.current=true;localStorage.removeItem(key);onCreated?.();onClose();}catch(e){setError((e as Error).message);}finally{setSaving(false);}};
  const permitted=(r:Link)=>role==='Otra área autorizada'||choices.includes(r.defaultOwner||data.owners[r.clientId]||user);
  const liveVisits:Link[]=Object.entries(agenda.profiles).filter(([,p])=>choices.includes(sellerName(p.label))).flatMap(([id,p])=>p.events.filter(e=>e.activityType==='visit').map(e=>({clientId:CLIENTS.find(c=>c.client.toLowerCase()===e.title.toLowerCase())?.clientId||clientIds[e.title]||'CLIENTE-'+e.title,client:e.title,address:e.address,visitId:id+':'+e.id,visitStatus:e.status})));
  const options=[...CLIENTS,...VISITS,...liveVisits].filter(permitted);
@@ -38,7 +38,7 @@ function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
  const assignedToOther=multi||canAssign&&form.assigned!==actor;
  const effectiveRequired=catalogRequired||!!form.evidenceRequired;
  return <Dialog open onClose={onClose} fullWidth maxWidth="sm"><DialogTitle>{checkout?'COMPROMISO DE LA VISITA':'CREAR TAREA'}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>
- <Alert severity="info">El detalle es opcional. La evidencia al completar depende del catálogo y, si se asigna a otra persona, de la exigencia del asignador; el comentario se registra únicamente al cerrar. Borrador recuperable en este navegador.</Alert>
+ <Alert severity="info">En este paso solo registras la tarea. El asesor adjuntará la evidencia cuando la ejecute y vaya a completarla, si corresponde. El comentario de resultado también se captura al completar.</Alert>
  {checkout&&<Alert severity="success">Cliente y visita de origen precargados. Puedes volver y finalizar la visita aunque no guardes la tarea.</Alert>}
  <Autocomplete freeSolo options={suggestions} inputValue={form.subject} onInputChange={(_,value)=>patch({subject:value})} renderInput={p=><TextField {...p} required label="Asunto" inputProps={{...p.inputProps,maxLength:255}} helperText="Elige una sugerencia o escribe un asunto libremente."/>}/>
  <Autocomplete options={availableTypes} value={availableTypes.includes(form.type)?form.type:null} onChange={(_,v)=>patch({type:v||'',subject:'',evidenceRequired:false})} renderInput={params=><TextField {...params} required label="Tipo de tarea"/>}/>
@@ -50,13 +50,12 @@ function Editor({onClose,link,creator,onCreated,checkout}:ComposerProps){
   <TextField required type="datetime-local" label={form.repeat?'Primera repetición / vencimiento':'Vencimiento'} InputLabelProps={{shrink:true}} inputProps={{min:`${localDay()}T${new Date().toTimeString().slice(0,5)}`}} value={form.due} onChange={e=>patch({due:e.target.value})}/>
  <TextField multiline minRows={2} label="Detalle / instrucciones (opcional)" inputProps={{maxLength:4000}} value={form.detail} onChange={e=>patch({detail:e.target.value})}/>
  
- {!multi&&<Attachments value={form.attachments} onChange={attachments=>patch({attachments})} onBusy={setBusy}/>}
- {!multi&&<FormControlLabel control={<Checkbox checked={!!form.repeat} onChange={(_,checked)=>patch({repeat:checked?{every:1,unit:'semanas',end:'cantidad',count:4,until:localDay(),zone:Intl.DateTimeFormat().resolvedOptions().timeZone}:undefined})}/>} label="Repetir tarea"/>}
+  {!multi&&<FormControlLabel control={<Checkbox checked={!!form.repeat} onChange={(_,checked)=>patch({repeat:checked?{every:1,unit:'semanas',end:'cantidad',count:4,until:localDay(),zone:Intl.DateTimeFormat().resolvedOptions().timeZone}:undefined})}/>} label="Repetir tarea"/>}
  {!multi&&form.repeat&&<Stack spacing={2}><Stack direction="row" spacing={1}><TextField label="Cada" type="number" inputProps={{min:1,step:1}} value={form.repeat.every} onChange={e=>repeatPatch({every:Number(e.target.value)})}/><TextField select label="Unidad" value={form.repeat.unit} onChange={e=>repeatPatch({unit:e.target.value as Repeat['unit']})}>{['días','semanas','meses'].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField></Stack>
  <TextField select label="Termina por" value={form.repeat.end} onChange={e=>repeatPatch({end:e.target.value as Repeat['end']})}><MenuItem value="cantidad">Cantidad de repeticiones</MenuItem><MenuItem value="fecha">Fecha final</MenuItem></TextField>
  {form.repeat.end==='cantidad'?<TextField label="Número de repeticiones" type="number" inputProps={{min:1,max:500}} value={form.repeat.count} onChange={e=>repeatPatch({count:Number(e.target.value)})}/>:<TextField type="date" label="Fecha final" InputLabelProps={{shrink:true}} value={form.repeat.until} onChange={e=>repeatPatch({until:e.target.value})}/>}
  <Typography variant="caption">Zona: {form.repeat.zone}. Vence el mismo día a la hora indicada. Día mensual inexistente: último día del mes; fines de semana y feriados sin desplazamiento. Cada repetición conserva su propio estado. El simulador genera hasta 500 repeticiones; se materializan al abrir o avanzar el día simulado.</Typography>
  <Alert severity="info">Las repeticiones nuevas comienzan sin comentario ni archivos. La evidencia se validará al completar según la regla de la serie.</Alert></Stack>}
  {error&&<Alert severity="error">{error}</Alert>}
- </Stack></DialogContent><DialogActions sx={{flexWrap:'wrap'}}><Button onClick={()=>{suppressed.current=true;localStorage.removeItem(key);onClose();}}>Descartar borrador</Button><Button onClick={onClose}>Volver y conservar</Button><Button variant="contained" disabled={busy||saving} onClick={save}>{multi?`Crear ${assignees.length} tareas`:'Crear tarea'}</Button></DialogActions></Dialog>;
+ </Stack></DialogContent><DialogActions sx={{flexWrap:'wrap'}}><Button onClick={()=>{suppressed.current=true;localStorage.removeItem(key);onClose();}}>Descartar borrador</Button><Button onClick={onClose}>Volver y conservar</Button><Button variant="contained" disabled={saving} onClick={save}>{multi?`Crear ${assignees.length} tareas`:'Crear tarea'}</Button></DialogActions></Dialog>;
 }
