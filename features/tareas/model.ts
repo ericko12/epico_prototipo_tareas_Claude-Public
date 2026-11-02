@@ -21,7 +21,7 @@ export type Attachment={id:string;name:string;size:number;mime:string};
 export type ClosureCycle={closedAt:string;closedBy:string;comment:string;attachments:Attachment[];reopenedAt?:string;reopenReason?:string};
 export type Task={id:string;subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;status:'Pendiente'|'Completada'|'Cancelada';history:string[];reason?:string;creator:string;seriesId?:string;source:'Manual'|'Recurrente';evidenceRequired?:boolean;cycles?:ClosureCycle[]};
 export type Repeat={every:number;unit:'días'|'semanas'|'meses';end:'fecha'|'cantidad';until:string;count:number;zone:string};
-export type Form={subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;repeat?:Repeat;id:string};
+export type Form={subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;repeat?:Repeat;id:string;evidenceRequired?:boolean};
 export type Series={id:string;creator:string;template:Form;active:boolean;history:string[]};
 export const blank=(actor:string):Form=>({id:uid(),subject:'',type:TYPES[0],assigned:actor,due:`${localDay()}T17:00`,detail:'',comment:'',attachments:[]});
 export const isOpen=(t:Task)=>t.status==='Pendiente';
@@ -65,7 +65,7 @@ export function generate(series:Series[],existing:Task[],through:string){
   for(let i=0;i<(r.end==='cantidad'?r.count:500);i++){
    const due=occurrence(s.template.due,r,i);if(r.end==='fecha'&&due.slice(0,10)>r.until)break;if(due.slice(0,10)>through)break;
    const id=`${s.id}:${i}`;if(ids.has(id))continue;
-   result.push({...taskFrom({...s.template,id,due,comment:'',attachments:[]},s.creator),seriesId:s.id,source:'Recurrente',history:[`Repetición ${i+1} · serie de ${s.creator} · zona ${r.zone}`]});ids.add(id);
+   result.push({...taskFrom({...s.template,id,due,comment:'',attachments:[]},s.creator,!!s.template.evidenceRequired),seriesId:s.id,source:'Recurrente',history:[`Repetición ${i+1} · serie de ${s.creator} · zona ${r.zone}`]});ids.add(id);
   }
  }
  return result;
