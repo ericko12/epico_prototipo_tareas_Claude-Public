@@ -18,7 +18,8 @@ const BASE_CLIENTS:Link[]=[
 export const CLIENTS:Link[]=Array.from(new Map([...Object.values(initialProfiles()).flatMap(p=>p.clients.map(c=>({clientId:clientIds[c[0]]||'CLIENTE-'+c[0],client:c[0],address:c[1],defaultOwner:sellerName(p.label)}))),...BASE_CLIENTS.map(c=>({...c,defaultOwner:c.clientId==='315'?'Yuridia Torres':'Luis Galván'}))].map(c=>[c.clientId,c])).values());
 export const VISITS:Link[]=['Programada','En curso','Realizada','Cancelada'].map((visitStatus,i)=>({...CLIENTS[i%2],visitId:`VIS-${410+i}`,visitStatus}));
 export type Attachment={id:string;name:string;size:number;mime:string};
-export type Task={id:string;subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;status:'Pendiente'|'Completada'|'Cancelada';history:string[];reason?:string;creator:string;seriesId?:string;source:'Manual'|'Recurrente'};
+export type ClosureCycle={closedAt:string;closedBy:string;comment:string;attachments:Attachment[];reopenedAt?:string;reopenReason?:string};
+export type Task={id:string;subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;status:'Pendiente'|'Completada'|'Cancelada';history:string[];reason?:string;creator:string;seriesId?:string;source:'Manual'|'Recurrente';evidenceRequired?:boolean;cycles?:ClosureCycle[]};
 export type Repeat={every:number;unit:'días'|'semanas'|'meses';end:'fecha'|'cantidad';until:string;count:number;zone:string};
 export type Form={subject:string;type:string;assigned:string;due:string;detail:string;comment:string;attachments:Attachment[];link?:Link;repeat?:Repeat;id:string};
 export type Series={id:string;creator:string;template:Form;active:boolean;history:string[]};
@@ -57,7 +58,7 @@ export function validateForm(f:Form){
  if(f.repeat){const r=f.repeat;if(!Number.isInteger(r.every)||r.every<1)return 'El intervalo debe ser un entero mayor a cero.';if(r.end==='cantidad'&&(!Number.isInteger(r.count)||r.count<1||r.count>500))return 'Usa de 1 a 500 repeticiones en este simulador.';if(r.end==='fecha'&&(!r.until||r.until<f.due.slice(0,10)))return 'La fecha final debe ser igual o posterior al inicio.';}
  return '';
 }
-export function taskFrom(f:Form,creator:string):Task{return {id:f.id,subject:f.subject.trim(),type:f.type,assigned:f.assigned,due:f.due,detail:f.detail,comment:f.comment,attachments:f.attachments,link:f.link,status:'Pendiente',history:[`Creada por ${creator} · ${new Date().toLocaleString('es-MX')}`],creator,source:'Manual'};}
+export function taskFrom(f:Form,creator:string,evidenceRequired=false):Task{return {id:f.id,subject:f.subject.trim(),type:f.type,assigned:f.assigned,due:f.due,detail:f.detail,comment:f.comment,attachments:f.attachments,link:f.link,status:'Pendiente',history:[`Creada por ${creator} · ${new Date().toLocaleString('es-MX')}`],creator,source:'Manual',evidenceRequired,cycles:[]};}
 export function generate(series:Series[],existing:Task[],through:string){
  const result=[...existing];const ids=new Set(result.map(t=>t.id));
  for(const s of series){if(!s.active||!s.template.repeat)continue;const r=s.template.repeat;
