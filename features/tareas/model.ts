@@ -43,20 +43,22 @@ export function fileError(file:{name:string;size:number},count:number){
 export function occurrence(start:string,repeat:Repeat,index:number){
  const [date,time]=start.split('T');const [y,m,d]=date.split('-').map(Number);let target:Date;
  if(repeat.unit==='semanas'&&repeat.weekdays?.length){
-  // La primera ocurrencia es la primera fecha seleccionada en o después del inicio.
   const days=[...new Set(repeat.weekdays)].sort((a,b)=>a-b);
-  const first=new Date(Date.UTC(y,m-1,d));const monday=(first.getUTCDay()+6)%7;
-  const offsets:number[]=[];
-  for(let week=0;week<500;week+=repeat.every){for(const day of days){const offset=week*7+day-monday;if(offset>=0)offsets.push(offset);if(offsets.length>index)break;}if(offsets.length>index)break;}
-  target=new Date(Date.UTC(y,m-1,d+ (offsets[index]??index*repeat.every*7)));
+  const monday=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;
+  let count=0,offset=0;
+  outer:for(let week=0;week<=index+1;week++)for(const day of days){
+   const next=week*repeat.every*7+day-monday;
+   if(next<0)continue;
+   if(count++===index){offset=next;break outer;}
+  }
+  target=new Date(Date.UTC(y,m-1,d+offset));
  }else if(repeat.unit==='meses'||repeat.unit==='años'){
-  const month=repeat.unit==='años'?(repeat.annualMonth||m)-1:m-1;
-  const shift=repeat.unit==='años'?index*repeat.every*12:index*repeat.every;
-  const base=new Date(Date.UTC(y,month+shift,1));
-  const last=new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth()+1,0)).getUTCDate();
   const day=repeat.unit==='años'?(repeat.annualDay||d):(repeat.monthDay||d);
+  const month=repeat.unit==='años'?(repeat.annualMonth||m)-1:m-1;
+  const initialYear=repeat.unit==='años'&&((repeat.annualMonth||m)<m||((repeat.annualMonth||m)===m&&day<d))?y+1:y;
+  const base=repeat.unit==='años'?new Date(Date.UTC(initialYear+index*repeat.every,month,1)):new Date(Date.UTC(y,month+index*repeat.every,1));
+  const last=new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth()+1,0)).getUTCDate();
   target=new Date(Date.UTC(base.getUTCFullYear(),base.getUTCMonth(),Math.min(day,last)));
-  if(repeat.unit==='años'&&target<new Date(Date.UTC(y,m-1,d)))target=new Date(Date.UTC(y+repeat.every*(index+1),month,Math.min(day,new Date(Date.UTC(y+repeat.every*(index+1),month+1,0)).getUTCDate())));
  }else target=new Date(Date.UTC(y,m-1,d+index*repeat.every*(repeat.unit==='semanas'?7:1)));
  return `${target.toISOString().slice(0,10)}T${time}`;
 }
