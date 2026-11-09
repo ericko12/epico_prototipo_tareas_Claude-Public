@@ -47,7 +47,7 @@ export const NavBarContent = ({ isDrawerOpen, toggleDrawer, isMobile }: { isDraw
             </Tooltip>
           ) : (
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mr: "1.6rem", ml: "1.1rem" }}>
-              <IconButton aria-label="Notificaciones"><Notifications sx={{ fontSize: 19, color: "black" }} /></IconButton>
+              <Box id="clients-toolbar-action" sx={{"&:empty":{display:"none"}}}/><IconButton aria-label="Notificaciones"><Notifications sx={{ fontSize: 19, color: "black" }} /></IconButton>
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ cursor: "pointer" }} onClick={(e) => setAnchor(e.currentTarget)}>
                 <Avatar sx={{ width: 32, height: 32, fontSize: 14 }}>{DUMMY_USER.initials}</Avatar>
                 <Box>

@@ -1,6 +1,7 @@
 "use client";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
+import CommercialLevelUpload,{commercialRelations} from "./CommercialLevelUpload";
 import DiagnosticoDemo from "./DiagnosticoDemo";
 import ParqueVehicularAccess from "@/features/parqueVehicular/infrastructure/ui/ParqueVehicularAccess";
 import ClientList,{type ClientListItem} from "./ClientList";
@@ -19,6 +20,7 @@ const clients:Client[]=[
 {id:"CLI-1001",name:"Refaccionaria El Volante",rfc:"REV010101XXX",phone:"3330000000",email:"demo@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Refaccionaria",segment:"Menudeo",address:"Av. Demo Río Nilo 2250 · Tonalá, Jal. · DUMMY",bankReference:"1001001",sellerId:"42",registeredAt:"2022-01-10",subClassification:"Menudeo",scenario:"Visitas y tareas"},
 {id:"418",name:"MOTO REFACCIONES DEL CENTRO",rfc:"MRC200101XXX",phone:"3330000418",email:"moto@ejemplo.com",branch:"Guadalajara",seller:"LUIS GALVÁN",region:"Occidente",division:"Moto partes",segment:"Menudeo",address:"Av. Demo Motociclistas 418 · Guadalajara, Jal. · DUMMY",bankReference:"418001",sellerId:"42",registeredAt:"2023-03-15",subClassification:"Moto partes",scenario:"Moto partes"},
 {id:"529",name:"TRANSPORTES DEMO OCCIDENTE",rfc:"TDO200101XXX",phone:"3330000529",email:"empresa@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Empresas",segment:"Flotilla",address:"Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY",bankReference:"529001",sellerId:"42",registeredAt:"2024-06-20",subClassification:"Flotilla",scenario:"Empresa · diagnóstico por Dirección"}];
+const relations=clients.flatMap(commercialRelations);
 export default function ClientesDemo(){
 const router=useRouter();
 const agenda=useAgenda();
@@ -43,6 +45,7 @@ const openTask=()=>setTaskOpen(true);
 const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.activityType==="visit").map(e=>({id:String(e.id),label:`Visita · ${e.date??"Hoy"}, ${e.time}`})):[];
 const currentVisit=client?agenda.profiles.luis.events.find(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.status==="Check-in activo"):undefined;
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
+{!client&&agenda.role==="manager"&&<CommercialLevelUpload relations={relations}/>}
 <Box sx={{display:client?"none":"block"}}><ClientList clients={clients} onOpen={selected=>{setDetail(selected);setTab(0);agenda.setDetail({event:null})}}/></Box>
 {client&&<>
 <Button startIcon={<ArrowBack/>} onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{mb:2}}>Listado de clientes</Button>
