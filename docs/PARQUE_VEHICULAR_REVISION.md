@@ -1,31 +1,42 @@
-# Parque vehicular: integración para revisión con Luis Galván
+# Parque vehicular: prototipo para revisión
 
-Repositorio y publicación correctos: `epico_prototipo_tareas_Claude-Public`.
+Repositorio y publicación: `epico_prototipo_tareas_Claude-Public` → https://ericko12.github.io/epico_prototipo_tareas_Claude-Public/Modulo/clientes/
 
-## Acceso acordado
+**Versión del 12-nov-2026**, alineada con la spec SDD aprobada por el BA (SPEC-F2-005, cambio `2026-11-06-parque-vehicular`, «alta y consulta») del repositorio `epico/epico-movil`, rama `spec-f2-5/parque-vehicular`. Incluye además «Modificar» con motivo. Las referencias «clar. N» son las clarificaciones de esa spec.
 
-Listado de clientes existente → buscar 529 → TRANSPORTES DEMO OCCIDENTE → Información general → Direcciones → botón Parque vehicular de una dirección → listado de grupos → Registrar parque vehicular.
+## Recorrido
 
-No se reemplazan el listado, el detalle general, Radiografía/Diagnóstico, Crear tarea ni Iniciar visita. Se reutilizan shell, tema y componentes MUI del repositorio. El acceso está en cada tarjeta de dirección, de acuerdo con el wireflow.
+Clientes → buscar **529** → TRANSPORTES DEMO OCCIDENTE → Información general → Direcciones → «Parque vehicular» de una dirección.
 
-## Escenarios
+Arriba de las Direcciones está **«Ver el prototipo como»** para cambiar de rol:
 
-- BASE OPERATIVA: domicilio que ya tenía el cliente 529, inicialmente sin grupos.
-- DIRECCIÓN 1: dirección ficticia adicional, inicialmente con dos grupos de servicio pesado y 35 unidades.
-- BASE MONTERREY: asignada a otro vendedor, excluida de consulta y captura en el demo del vendedorID 42.
-- Crear, consultar, modificar y guardar otro grupo conservando la dirección.
-- Años invertidos, unidades inválidas y cambio de Tipo/Marca con datos dependientes.
+| Rol | Ve | Puede |
+|---|---|---|
+| Asesor asignado (vendedor 42) | BASE OPERATIVA y DIRECCIÓN 1 | Registrar y modificar |
+| Gerente territorial | Las Direcciones de sus asesores (las mismas dos) y ninguna otra | Solo consultar |
+| KAM | Las tres Direcciones de la Cuenta 529 | Solo consultar |
+| Administrador funcional | Las tres | Modificar y usar el reporte «Valores "Otro"» |
+| Soporte de datos | Las tres | Solo consultar |
 
-El buscador de clientes mantiene su comportamiento. Para entrar, escribir 529 y pulsar Buscar, o usar el escenario de Empresas existente y después abrir la fila resultante.
+La versión móvil (`diagnostico-mobile.html`, cliente 305) aplica las mismas reglas con su propio selector de rol.
 
-## Decisiones pendientes
+## Qué cubre
 
-Notas para revisión enumera la aplicabilidad de Carrocería/Modelo de carrocería (sólo autobús en el ejemplo), obligatoriedad de motor/años, catálogo canónico, duplicados/solapamientos, matriz completa de permisos y estrategia de guardado. Las reglas del demo son hipótesis para comentar, no acuerdos nuevos de SPEC.
+- **Catálogo de Salesforce** (`features/parqueVehicular/domain/catalog.json`, copia en `public/parque-vehicular-catalog.json`), generado de la matriz del 10-nov-2026: 27 tipos con su etiqueta exacta, marcas por tipo, 14 carrocerías de autobús, 110 motores, modelos de VOLVO y MARCOPOLO. Diez tipos no tienen catálogo verificado: solo admiten «Otro». La separación de modelos VOLVO entre autobús y servicio pesado es una muestra de la regla tipo + marca (clar. 24).
+- **Dos ramas:** Tipo → Marca → Modelo; en autobuses, Tipo → Carrocería → Modelo de carrocería. El motor no se filtra. Cambiar la marca no borra la carrocería (clar. 21, 25, 27).
+- **«Otro (no está en la lista)»** con texto obligatorio, máximo 60, en marca, modelo, carrocería, modelo de carrocería y motor; marca «Otro» lleva modelo «Otro»; distintivo «No catalogado» (clar. 5, 28, 39, 44).
+- **Obligatorios:** tipo, marca, modelo y unidades. Años de cuatro dígitos y no futuros (clar. 3, 7).
+- **Sesión de captura:** los grupos quedan «Sin guardar» hasta «Revisar y guardar». Ahí se señalan las coincidencias (misma configuración con años que se cruzan, o con años, motor o carrocería vacíos; «Otro» sin distinguir mayúsculas). «Guardar» se habilita al justificar o quitar cada una. El resultado se informa grupo por grupo (clar. 1, 8, 16, 35, 40, 41).
+- **Detalle:** justificación de coincidencia y valor original de un campo reasignado (clar. 42).
+- **Reporte del administrador:** valores «Otro» agrupados, porcentaje del mes contra la meta de 10 % y reasignación al catálogo (clar. 31, 44, 45).
+- **Modificar** con motivo obligatorio; solo una modificación del asesor renueva el último levantamiento (clar. 17, 37).
 
-Los grupos se guardan en localStorage bajo una clave propia de este prototipo. No hay backend ni comentarios compartidos. No se copia la base de clientes ficticios que se había agregado al repositorio de Agenda: se utiliza el cliente 529 existente.
+**Segunda entrega, no incluida:** mover de Dirección, desactivar, reactivar, eliminar, vigencia de 12 meses, historial y migración desde Salesforce (cambio `2026-11-12-parque-vehicular-mantenimiento`).
+
+Los datos se guardan en el navegador (`epico-tareas-fleet-review-v2` y `epico-mobile-fleet-v2`). «Notas para revisión» → «Restaurar ejemplos» vuelve a los datos iniciales.
 
 ## Verificación
 
-- `node scripts/test-fleet.cjs`: contexto, cartera, persistencia compatible, catálogos, años y unidades.
-- `node tests/model.test.cjs`: regresión del modelo de Tareas existente.
-- `NEXT_PUBLIC_BASE_PATH=/epico_prototipo_tareas_Claude-Public npm run build`: tipos y exportación para la ruta publicada.
+- `node scripts/test-fleet.cjs`: catálogo, roles, validación, limpieza por rama, coincidencias, guardado parcial, reporte y modificación.
+- `node tests/model.test.cjs`: regresión del modelo de Tareas.
+- `npx tsc --noEmit` y `NEXT_PUBLIC_BASE_PATH=/epico_prototipo_tareas_Claude-Public npm run build`.
