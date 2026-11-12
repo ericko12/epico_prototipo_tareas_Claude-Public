@@ -1,10 +1,22 @@
+function demoMigratedDiagnosis(clientId, segment) {
+  return clientId === "207" && segment === "Refa" ? {0: "Avenida Principal"} : {};
+}
+
+function demoDiagnosisOrigin(clientId, segment) {
+  return clientId === "207" && segment === "Refa" ? "Diagnóstico inicial · Salesforce (demo)" : "";
+}
+
 function renderImportedClassifications(clientId, relationId, role, panelId, buttonId) {
   function record(key, id) {
     try { return JSON.parse(localStorage.getItem(key) || "{}")[id]; }
     catch { return undefined; }
   }
-  const account = record("epico:account-classification:v1", clientId);
-  const commercial = relationId ? record("epico:commercial-level:v1", relationId) : undefined;
+  const accounts = record("epico:classification-levels:v2", "accounts");
+  const assignments = record("epico:classification-levels:v2", "commercial");
+  const account = accounts ? accounts[clientId] : record("epico:account-classification:v1", clientId);
+  const commercial = relationId
+    ? (assignments ? assignments[relationId] : record("epico:commercial-level:v1", relationId))
+    : undefined;
   const missing = "Sin información disponible";
   function dateText(entry) {
     return new Date(entry.updatedAt).toLocaleString("es-MX");
@@ -16,7 +28,6 @@ function renderImportedClassifications(clientId, relationId, role, panelId, butt
   }
   show("strategicLevel", account?.strategic, account);
   show("commercialLevel", commercial?.level, commercial);
-  show("gecLevel", account?.level, account);
 
   const allowed = role === "Asesor" || role === "Gerente";
   const panel = document.getElementById(panelId);
@@ -47,5 +58,5 @@ function renderImportedClassifications(clientId, relationId, role, panelId, butt
     }
   }
   showHistory("Historial de Nivel comercial por vendedor", commercial?.history ?? [], entry => entry.level);
-  showHistory("Historial de Nivel estratégico y GEC por Cuenta", account?.history ?? [], entry => entry.strategic + " / " + entry.level);
+  showHistory("Historial de Nivel estratégico por Cuenta", account?.history ?? [], entry => entry.strategic);
 }
