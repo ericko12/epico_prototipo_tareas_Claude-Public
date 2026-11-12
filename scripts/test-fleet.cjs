@@ -102,3 +102,9 @@ assert.equal(f.editGroup(g0, { ...g0, units: '8' }, 'corrección', 'admin', toda
 assert.equal(f.validStoredFleets(f.INITIAL_FLEETS), true);
 assert.equal(f.validStoredFleets([{ id: 'incompleto' }]), false);
 console.log('Pruebas de Parque vehicular aprobadas: catálogo, roles, validación, limpieza, coincidencias, guardado, reporte y modificación.');
+
+// Orden de los 27 tipos por familia, con MC VI antes que MC VII (clar. 47)
+const i6 = f.TYPES.findIndex(t => t.startsWith('MC VI ')), i7 = f.TYPES.findIndex(t => t.startsWith('MC VII'));
+assert.ok(i6 >= 0 && i6 + 1 === i7, 'MC VI va justo antes que MC VII');
+assert.equal(JSON.stringify(require('../public/parque-vehicular-catalog.json').tipos), JSON.stringify(f.TYPES), 'Escritorio y móvil con el mismo orden');
+console.log('Orden de tipos verificado.');

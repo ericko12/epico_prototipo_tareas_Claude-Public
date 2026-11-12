@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { FIELD_LABEL, OTRO, OTRO_LABEL, OTRO_MAX, TYPES, applyChange, hasBody, optionsFor, textKey, wouldLose } from '../../domain/fleet';
 import type { Errors, FleetForm, OtroField } from '../../domain/fleet';
 
 const NO_OPTIONS = 'No hay opciones disponibles para esta combinación. Solicita la revisión del catálogo.';
+const NONE = '__NONE__';
 
 /** Campos de captura de un grupo con las dos ramas de catálogo, «Otro» con texto y confirmación al limpiar dependientes. */
 export default function FleetFields({ form, errors, onChange }: { form: FleetForm; errors: Errors; onChange: (next: FleetForm) => void }) {
@@ -21,15 +22,33 @@ export default function FleetFields({ form, errors, onChange }: { form: FleetFor
     const disabled = options === undefined;
     const forcedOtro = (field === 'model' && form.brand === OTRO) || (field === 'bodyModel' && form.body === OTRO);
     const empty = !disabled && !forcedOtro && options.length === 0;
+    const helper = errors[field] || (forcedOtro ? 'Se escribe a mano porque la opción anterior es «Otro».' : empty ? NO_OPTIONS : disabled ? hint : undefined);
+    // Marca, Modelo y Motor se filtran al escribir; «Otro» siempre visible (clar. 46).
+    const searchable = field === 'brand' || field === 'model' || field === 'motor';
     return <Box key={field} sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      <TextField select fullWidth size="small" id={`fleet-${field}`} label={FIELD_LABEL[field]} required={required}
+      {searchable ? <Autocomplete<string>
+        id={`fleet-${field}`} size="small" fullWidth disabled={disabled || forcedOtro}
+        options={[...(options || []), OTRO]} value={form[field] || null}
+        onChange={(_, v) => change(field, v && v !== NONE ? v : '')}
+        getOptionLabel={o => o === OTRO ? OTRO_LABEL : o}
+        getOptionDisabled={o => o === NONE}
+        filterOptions={(opts, { inputValue }) => {
+          const q = inputValue.trim().toLocaleLowerCase('es');
+          const hits = opts.filter(o => o !== OTRO && o.toLocaleLowerCase('es').includes(q));
+          return q && !hits.length ? [NONE, OTRO] : [...hits, OTRO];
+        }}
+        renderOption={(props, o, state) => { const { key, ...rest } = props as typeof props & { key: string };
+          return <li key={key} {...rest}>{o === NONE ? `No hay opciones con «${state.inputValue.trim()}»` : o === OTRO ? <em>{OTRO_LABEL}</em> : o}</li>; }}
+        ListboxProps={{ style: { maxHeight: 320 } }}
+        renderInput={params => <TextField {...params} label={FIELD_LABEL[field]} required={required} placeholder="Escribe para buscar" error={!!errors[field]} helperText={helper} />}
+      /> : <TextField select fullWidth size="small" id={`fleet-${field}`} label={FIELD_LABEL[field]} required={required}
         value={form[field]} disabled={disabled || forcedOtro} onChange={e => change(field, e.target.value)}
-        error={!!errors[field]} helperText={errors[field] || (forcedOtro ? 'Se escribe a mano porque la opción anterior es «Otro».' : empty ? NO_OPTIONS : disabled ? hint : undefined)}
+        error={!!errors[field]} helperText={helper}
         SelectProps={{ MenuProps: { PaperProps: { sx: { maxHeight: 360 } } } }}>
         <MenuItem value="">Seleccionar</MenuItem>
         {(options || []).map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
         <MenuItem value={OTRO}>{OTRO_LABEL}</MenuItem>
-      </TextField>
+      </TextField>}
       {form[field] === OTRO && <TextField fullWidth size="small" id={`fleet-${field}Text`} label={`${FIELD_LABEL[field]} (escrito)`} required
         value={form[textKey(field)]} onChange={e => onChange({ ...form, [textKey(field)]: e.target.value.slice(0, OTRO_MAX) })}
         inputProps={{ maxLength: OTRO_MAX }} error={!!errors[textKey(field)]}

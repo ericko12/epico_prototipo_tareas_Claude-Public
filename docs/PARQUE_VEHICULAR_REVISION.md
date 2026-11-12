@@ -29,6 +29,7 @@ La versión móvil (`diagnostico-mobile.html`, cliente 305) aplica las mismas re
 - **Sesión de captura:** los grupos quedan «Sin guardar» hasta «Revisar y guardar». Ahí se señalan las coincidencias (misma configuración con años que se cruzan, o con años, motor o carrocería vacíos; «Otro» sin distinguir mayúsculas). «Guardar» se habilita al justificar o quitar cada una. El resultado se informa grupo por grupo (clar. 1, 8, 16, 35, 40, 41).
 - **Detalle:** justificación de coincidencia y valor original de un campo reasignado (clar. 42).
 - **Reporte del administrador:** valores «Otro» agrupados, porcentaje del mes contra la meta de 10 % y reasignación al catálogo (clar. 31, 44, 45).
+- **Búsqueda al escribir** en Marca, Modelo y Motor, con «Otro» siempre visible; Tipo sin búsqueda. **Orden de los 27 tipos** por familia, con MC VI antes que MC VII. **Reporte** paginado de 25 en 25 con «Exportar a Excel» (clar. 46 a 48, pedidas en la revisión de Producto del 12-nov-2026).
 - **Modificar** con motivo obligatorio; solo una modificación del asesor renueva el último levantamiento (clar. 17, 37).
 
 **Segunda entrega, no incluida:** mover de Dirección, desactivar, reactivar, eliminar, vigencia de 12 meses, historial y migración desde Salesforce (cambio `2026-11-12-parque-vehicular-mantenimiento`).

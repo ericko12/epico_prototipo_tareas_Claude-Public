@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography } from '@mui/material';
+import { ArrowBack, FileDownloadOutlined } from '@mui/icons-material';
 import { FIELD_LABEL, monthStats, otroReport, reassign, reassignOptions, userOf } from '../../domain/fleet';
 import type { OtroRow } from '../../domain/fleet';
 import { useFleetStore } from './fleetStore';
@@ -12,8 +12,19 @@ export default function OtroReport({ onBack }: { onBack: () => void }) {
   const { groups, setGroups, loaded } = useFleetStore();
   const [choice, setChoice] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(0);
   if (!loaded) return <Box sx={{ p: 4 }}><CircularProgress aria-label="Cargando reporte" /></Box>;
   const rows = otroReport(groups);
+  const PAGE = 25;
+  const visible = rows.slice(page * PAGE, page * PAGE + PAGE);
+  /** Todas las filas, no solo la página visible (clar. 48). */
+  const exportExcel = async () => {
+    const { default: write } = await import('write-excel-file/browser');
+    const header = ['Campo', 'Tipo', 'Valor escrito', 'Grupos', 'Folios'];
+    const data = [header, ...rows.map(r => [FIELD_LABEL[r.field], r.type, r.text, r.count, r.ids.join(', ')])];
+    await write(data.map((row, i) => row.map(value => ({ value, ...(i === 0 ? { fontWeight: 'bold' as const } : {}) }))), { sheet: 'Valores Otro' }).toFile('valores_otro_parque_vehicular.xlsx');
+    setNotice(`Se exportaron ${rows.length} valores.`);
+  };
   const stats = monthStats(groups);
   const rowKey = (r: OtroRow) => `${r.field}|${r.type}|${r.text}`;
   const apply = (r: OtroRow) => {
@@ -29,11 +40,12 @@ export default function OtroReport({ onBack }: { onBack: () => void }) {
     <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
       <Chip variant="outlined" label={`Grupos registrados este mes: ${stats.total}`} />
       <Chip variant="outlined" color={stats.percent < 10 ? 'success' : 'warning'} label={`Con algún «Otro»: ${stats.withOtro} (${stats.percent} %) · meta < 10 %`} />
+      <Button size="small" variant="outlined" startIcon={<FileDownloadOutlined />} disabled={!rows.length} onClick={exportExcel} sx={{ ml: { sm: 'auto' } }}>Exportar a Excel</Button>
     </Stack>
     {!rows.length ? <Alert severity="success">No hay valores fuera del catálogo.</Alert> :
       <TableContainer component={Paper} variant="outlined"><Table size="small"><TableHead><TableRow>
         {['Campo', 'Tipo', 'Valor escrito', 'Grupos', 'Asignar a una opción del catálogo'].map(h => <TableCell key={h}>{h}</TableCell>)}
-      </TableRow></TableHead><TableBody>{rows.map(r => {
+      </TableRow></TableHead><TableBody>{visible.map(r => {
         const options = reassignOptions(r);
         return <TableRow key={rowKey(r)}>
           <TableCell>{FIELD_LABEL[r.field]}</TableCell>
@@ -47,7 +59,10 @@ export default function OtroReport({ onBack }: { onBack: () => void }) {
             <Button variant="contained" disabled={!choice[rowKey(r)]} onClick={() => apply(r)}>Asignar</Button>
           </Stack> : <Typography variant="body2" color="text.secondary">El catálogo aún no tiene opciones para este campo y tipo.</Typography>}</TableCell>
         </TableRow>;
-      })}</TableBody></Table></TableContainer>}
+      })}</TableBody></Table>
+      <TablePagination component="div" count={rows.length} page={Math.min(page, Math.max(0, Math.ceil(rows.length / PAGE) - 1))} onPageChange={(_, p) => setPage(p)}
+        rowsPerPage={PAGE} rowsPerPageOptions={[PAGE]} labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count} valores`} />
+      </TableContainer>}
     <Snackbar open={!!notice} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} />
   </Box>;
 }

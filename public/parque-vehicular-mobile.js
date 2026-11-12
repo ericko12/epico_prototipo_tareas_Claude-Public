@@ -191,7 +191,10 @@
         const empty = !disabled && options.length === 0;
         const hint = forced ? 'Se escribe a mano porque la opción anterior es «Otro».' : empty ? 'No hay opciones disponibles para esta combinación. Solicita la revisión del catálogo.'
           : options === undefined ? (f === 'body' || (f === 'bodyModel' && !hasBody(v.type)) ? 'Solo para autobuses.' : 'Selecciona primero la opción anterior.') : '';
+        // Marca, Modelo y Motor: campo para filtrar la lista al escribir (clar. 46).
+        const searchable = ['brand', 'model', 'motor'].includes(f) && !disabled && options.length > 0;
         return '<div class="field"><label for="fleet-' + f + '">' + esc(labels[f]) + (required ? ' *' : '') + '</label>'
+          + (searchable ? '<input type="search" data-q="' + f + '" placeholder="Escribe para buscar" aria-label="Buscar ' + esc(labels[f].toLocaleLowerCase('es')) + '">' : '')
           + '<select id="fleet-' + f + '" data-f="' + f + '"' + (disabled ? ' disabled' : '') + '><option value="">Seleccionar</option>'
           + (options || []).map(o => '<option' + (v[f] === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('')
           + '<option value="' + OTRO + '"' + (v[f] === OTRO ? ' selected' : '') + '>' + OTRO_LABEL + '</option></select>'
@@ -206,6 +209,17 @@
         + input('from') + input('to') + input('units', true)
         + (hasBody(v.type) ? '<div class="notice">Marca y Modelo describen el chasis (p. ej. VOLVO B11R); Carrocería y Modelo de carrocería, la carrocería montada encima (p. ej. MARCOPOLO PARADISO G8 1200).</div>' : '');
       host.querySelectorAll('[data-f]').forEach(el => { el.onchange = () => change(el.dataset.f, el.value); });
+      host.querySelectorAll('[data-q]').forEach(el => {
+        el.oninput = () => {
+          const f = el.dataset.q, q = el.value.trim().toLocaleLowerCase('es');
+          const control = host.querySelector('[data-f="' + f + '"]');
+          const hits = (optionsFor(v, f) || []).filter(o => o.toLocaleLowerCase('es').includes(q));
+          const keep = v[f] && v[f] !== OTRO && !hits.includes(v[f]) ? [v[f]] : [];
+          control.replaceChildren(new Option('Seleccionar', ''), ...[...keep, ...hits].map(o => new Option(o, o, false, v[f] === o)),
+            ...(q && !hits.length ? [Object.assign(new Option('No hay opciones con «' + el.value.trim() + '»', ''), { disabled: true })] : []),
+            new Option(OTRO_LABEL, OTRO, false, v[f] === OTRO));
+        };
+      });
       host.querySelectorAll('[data-t]').forEach(el => { el.oninput = () => { v[el.dataset.t + 'Text'] = el.value; }; });
       host.querySelectorAll('[data-n]').forEach(el => { el.oninput = () => { v[el.dataset.n] = el.value.trim(); }; });
       if (editing) form.querySelector('[data-justify]').classList.toggle('hidden', !others().length);

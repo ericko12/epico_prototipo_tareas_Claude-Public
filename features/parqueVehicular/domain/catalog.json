@@ -11,8 +11,8 @@
     "MC III - Eléctrico manual / patín (transpaleta, apilador)",
     "MC IV - Combustión interna, llanta sólida (cushion)",
     "MC V - Combustión interna, llanta neumática",
-    "MC VII - Todo terreno / telehandler",
     "MC VI - Tractor de arrastre (eléctrico o combustión)",
+    "MC VII - Todo terreno / telehandler",
     "Motocicletas- Reparto/Trabajo",
     "REMOLQUE - CAJA REFRIGERADA",
     "REMOLQUE - CAJA SECA",
@@ -487,5 +487,6 @@
     "VW / Kubota 2.0-2.5L (por validar)",
     "Xinchai 3E22YG51 / Xinchai C490 / Kubota",
     "Xinchai 3E22YG51 / Yanmar 4TNE98"
-  ]
+  ],
+  "ordenTipos": "Por familia, en el orden de Salesforce con MC VI antes que MC VII (clarificación 47)."
 }
