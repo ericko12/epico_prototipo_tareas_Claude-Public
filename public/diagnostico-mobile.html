@@ -167,6 +167,7 @@ function closeMulti(){$("multiDialog").close();$("filterOptions").value="";multI
 function applyMulti(){draft[multIndex]=[...multDraft];closeMulti();render()}
 function removeMultiChip(i,encoded){if(!editing||$("role").value==="Consulta")return;const x=decodeURIComponent(encoded);draft[i]=(draft[i]||[]).filter(v=>v!==x);render()}
 function simulateInactive(){if(multIndex<0||!multDraft.length){notify("Primero selecciona alguna opción");return}demoInactive.add(multiKey(multIndex,multDraft[0]));drawOptions();notify("Simulación: primera selección marcada como inactiva")}
+document.addEventListener("keydown",event=>{if(!["ArrowDown","ArrowUp"].includes(event.key)||!$("multiDialog").open)return;const checks=[...$("optionList").querySelectorAll('input[type="checkbox"]:not(:disabled)')].filter(el=>el.closest("label").offsetParent!==null);if(!checks.length)return;const current=checks.indexOf(document.activeElement);if(current===-1&&document.activeElement!==$("filterOptions"))return;event.preventDefault();const next=current<0?0:(current+(event.key==="ArrowDown"?1:-1)+checks.length)%checks.length;checks[next].focus()});
 function toggleClassHistory(){const el=$("classHistory"),open=el.classList.toggle("hidden");$("historyToggle").setAttribute("aria-expanded",String(!open));$("historyToggle").textContent=open?"Ver historial de clasificación ▾":"Ocultar historial de clasificación ▴"}
 
 const demoCustomers=[
