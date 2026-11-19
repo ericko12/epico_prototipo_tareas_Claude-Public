@@ -1,5 +1,5 @@
 function demoMigratedDiagnosis(clientId, segment) {
-  return clientId === "207" && segment === "Refa" ? {0: "Avenida Principal"} : {};
+  return clientId === "207" && segment === "Refa" ? {0: "Av. Principal"} : {};
 }
 
 function demoDiagnosisOrigin(clientId, segment) {
