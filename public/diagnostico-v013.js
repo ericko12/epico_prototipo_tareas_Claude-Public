@@ -242,6 +242,12 @@
     <button id="confirmProfileConflict" class="${buttonClass} alt" hidden>Confirmar Perfil después de revisar diferencias</button>
     <button id="recoverProfile" class="${buttonClass} alt" hidden>Recuperar respuestas anteriores para revisión</button>`;
   host.prepend(closure);
+  if(mobile){
+    const demo=closure.querySelector('.closure-demo');
+    const roleLabel=document.createElement('label');roleLabel.textContent='Rol de prueba ';roleLabel.append(el('role'));demo.append(roleLabel);
+    demo.append(el('segmentPicker'));
+    const heading=host.querySelector(':scope > .row h2');if(heading)heading.textContent='Cuestionario del segmento';
+  }
   const management=document.createElement('section');management.className='card';
   const currentDate=new Date();const tomorrow=new Date(currentDate);tomorrow.setDate(tomorrow.getDate()+1);
   management.innerHTML=`<h3>Historial de gestión · demostración</h3><p><b>Última actividad:</b> Visita realizada · ${escape(currentDate.toLocaleDateString('es-MX'))}</p><p>Solo las actividades realizadas actualizan esta fecha. Sin histórico de visitas o agenda de Salesforce.</p><div class="closure-activities"><p>Visita · ${escape(currentDate.toLocaleDateString('es-MX'))} · Realizada</p><p>Seguimiento · ${escape(tomorrow.toLocaleDateString('es-MX'))} · Programada</p><p>Visita · ${escape(currentDate.toLocaleDateString('es-MX'))} · Cancelada</p></div>`;
