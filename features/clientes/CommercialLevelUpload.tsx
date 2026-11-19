@@ -6,10 +6,11 @@ import {Alert,Button,Dialog,DialogActions,DialogContent,DialogTitle,IconButton,S
 import {UploadFileOutlined} from "@mui/icons-material";
 
 const storageKey = "epico:classification-levels:v2";
-const title = "Cargar niveles del cliente";
+const title = "Importar niveles de cliente";
 const headersExpected = ["ClienteID","ClienteVendedorID","Nivel estratégico","Nivel comercial"];
 const strategicLevels = ["7PlomoSC","7Plomo","6Bronce","5Plata","4Oro","3Platino","2Diamante","1Especial"];
-const validPeriod = (period:string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(period);
+const currentMonth = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; };
+const validPeriod = (period:string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(period) && period<=currentMonth();
 
 type Version = {period:string; updatedAt:string; author:string; level?:string; strategic?:string};
 type LevelRecord = Version & {history:Version[]};
@@ -35,7 +36,7 @@ export function commercialRelations(client:{id:string;seller:string}) {
 
 export default function CommercialLevelUpload({relations,canUpload,setCanUpload}:{relations:Relation[];canUpload:boolean;setCanUpload:(value:boolean)=>void}) {
   const [slot,setSlot]=useState<HTMLElement|null>(null);
-  const [period,setPeriod]=useState("2026-11");
+  const [period,setPeriod]=useState(currentMonth());
   const [open,setOpen]=useState(false);
   const [filename,setFilename]=useState("");
   const [rows,setRows]=useState<Row[]>([]);
@@ -163,7 +164,7 @@ export default function CommercialLevelUpload({relations,canUpload,setCanUpload}
       <DialogContent>
         <Stack spacing={2}>
           <Typography variant="body2">Selecciona un Excel con {headersExpected.join(", ")}. Usa únicamente datos de demostración.</Typography>
-          <TextField type="month" label="Periodo" value={period} onChange={event=>setPeriod(event.target.value)} slotProps={{inputLabel:{shrink:true}}} disabled={busy||!!result}/>
+          <TextField type="month" label="Periodo" error={!validPeriod(period)} helperText={!validPeriod(period)?"Selecciona el mes actual o uno anterior; no se aceptan meses futuros.":"Se permiten correcciones de cualquier mes anterior."} value={period} onChange={event=>setPeriod(event.target.value)} slotProps={{inputLabel:{shrink:true}}} disabled={busy||!!result}/>
           <Stack direction="row" gap={2} flexWrap="wrap" alignItems="center">
             <Button component="label" variant="outlined" disabled={busy}>Seleccionar Excel
               <input hidden type="file" accept=".xlsx" onChange={event=>{const file=event.target.files?.[0];if(file) void validate(file);event.target.value=""}}/>
