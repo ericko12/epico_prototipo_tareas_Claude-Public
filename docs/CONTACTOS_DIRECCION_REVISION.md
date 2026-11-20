@@ -9,6 +9,8 @@ Repositorio y publicación: `epico_prototipo_tareas_Claude-Public` → https://e
 1. Clientes → buscar **529** → TRANSPORTES DEMO OCCIDENTE → Información general → Direcciones → «Contactos (n)» de una dirección.
 2. En la ficha del cliente, el botón **CONTACTO: 1 - TRANSPORTES DEMO OCCIDENTE ▾** abre los contactos del cliente (alta desde el cliente).
 
+**Versión móvil:** https://ericko12.github.io/epico_prototipo_tareas_Claude-Public/diagnostico-mobile.html?clientId=305 → cliente **305** → Información general → Direcciones → «Contactos (n)». El botón «Editar» del encabezado CONTACTO abre los contactos del cliente. Usa las mismas reglas en `public/contactos-mobile.js` y guarda en `epico-mobile-contactos-v1`.
+
 El panel morado **«SIMULACIÓN · no es parte del producto»** permite cambiar entre «Puede editar contactos» y «Solo consulta», simular que Logística inactiva la dirección y restaurar los ejemplos.
 
 ## Qué cubre
@@ -27,7 +29,6 @@ El panel morado **«SIMULACIÓN · no es parte del producto»** permite cambiar 
 
 - Búsqueda de coincidencias, contacto compartido entre clientes, alcance local/central, entrega a Crédito y campañas, migración de Salesforce: cambio `2026-11-20-contactos-persona-y-migracion`.
 - Asociación masiva al arranque (clar. 9): el cliente 529 tiene tres direcciones, así que no aplica. Las reglas están en el dominio, no en pantalla.
-- La versión móvil en HTML (`diagnostico-mobile.html`). La pantalla React es responsiva y se revisó a 320 px.
 - El alcance por cartera (clar. 17) no se simula: la lista de direcciones sigue el selector de rol de Parque vehicular.
 
 Los datos se guardan en el navegador (`epico-tareas-contactos-v1`). «Restaurar ejemplos» vuelve a los datos iniciales.
@@ -37,3 +38,4 @@ Los datos se guardan en el navegador (`epico-tareas-contactos-v1`). «Restaurar 
 - `node tests/contactos.test.cjs`: 16 verificaciones de las reglas (vista por dirección, faltantes, obligatorios, alta, asociación sin duplicar, varias direcciones, inactivación, nuevo periodo y dirección inactiva).
 - `npx tsc --noEmit` y `next build` sin errores.
 - Recorrido en el navegador: escritorio y 320 px, sin desborde horizontal de la página y sin errores en consola.
+- Versión móvil (cliente 305) recorrida a 320 px: asociar, alta con validación, inactivar con «Otro», dirección inactiva, contactos desde el encabezado y alta desde el cliente. Los demás clientes conservan su diálogo de contacto y Parque vehicular sigue igual.
