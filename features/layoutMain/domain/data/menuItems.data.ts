@@ -79,6 +79,7 @@ export const menuItems: IMenuItem[] = [
   { key: "13", label: "Configuración", icon: SettingsIcon, route: m("configuracion"), subItems: [
     { key: "13-26", label: "Roles", route: m("roles") },
     { key: "13-27", label: "Usuarios", route: m("usuarios") },
+    { key: "13-28", label: "Segmentos de asesores", route: m("segmentos-asesores") },
   ]},
 ];
 
