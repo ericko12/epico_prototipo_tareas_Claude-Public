@@ -4,6 +4,8 @@ import {useRouter} from "next/navigation";
 import CommercialLevelUpload,{commercialRelations} from "./CommercialLevelUpload";
 import DiagnosticoDemo from "./DiagnosticoDemo";
 import ParqueVehicularAccess from "@/features/parqueVehicular/infrastructure/ui/ParqueVehicularAccess";
+import ContactosClienteDialog from "@/features/contactos/infrastructure/ui/ContactosClienteDialog";
+import {ADDRESSES} from "@/features/parqueVehicular/domain/fleet";
 import ClientList,{type ClientListItem} from "./ClientList";
 import {useAgenda} from "@/features/agenda/application/AgendaContext";
 import {EventDetailDialog,EventFormDialog,CancelEventDialog} from "@/features/agenda/infrastructure/ui/AgendaDialogs";
@@ -41,6 +43,7 @@ const openVisit=()=>{
 const [detail,setDetail]=useState<Client|null>(null),[tab,setTab]=useState(0),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
 useSetBreadcrumb(detail?["Clientes","Listado de clientes","Detalle"]:["Clientes","Listado de clientes"]);
 const [canUpload,setCanUpload]=useState(true);
+const [contactsOpen,setContactsOpen]=useState(false);
 const client=detail;
 const openTask=()=>setTaskOpen(true);
 const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.activityType==="visit").map(e=>({id:String(e.id),label:`Visita · ${e.date??"Hoy"}, ${e.time}`})):[];
@@ -58,7 +61,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Box sx={{minWidth:0,flex:"1 1 300px"}}>
 <Typography fontSize={20} fontWeight={700}>ID {client.id}</Typography>
 <Typography fontSize={21} fontWeight={700} sx={{mt:.4,mb:1.4}}>{client.name}</Typography>
-<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap><Typography fontSize={20}>CONTACTO:</Typography><Button variant="outlined" size="small" startIcon={<AccountCircle/>} sx={{color:"#172a4b",textTransform:"none",maxWidth:"100%"}}>1 - {client.name} ▾</Button></Stack>
+<Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap><Typography fontSize={20}>CONTACTO:</Typography><Button variant="outlined" size="small" startIcon={<AccountCircle/>} onClick={client.id==="529"?()=>setContactsOpen(true):undefined} aria-haspopup={client.id==="529"?"dialog":undefined} sx={{color:"#172a4b",textTransform:"none",maxWidth:"100%"}}>1 - {client.name} ▾</Button></Stack>
 </Box>
 <Stack direction={{xs:"column",sm:"row"}} spacing={1} alignItems={{sm:"center"}} flexWrap="wrap" useFlexGap justifyContent={{md:"flex-end"}} sx={{minWidth:0,flex:"1 1 350px"}}>
 <Button variant="outlined" size="small" startIcon={<Phone/>} sx={{textTransform:"none",maxWidth:"100%",overflowWrap:"anywhere"}}>{client.phone}　⌄</Button>
@@ -94,6 +97,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </>:<DiagnosticoDemo client={client}/>}
 </>}
 <TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={client?tasksContext.data.owners[client.id]||"Luis Galván":"Luis Galván"} link={client?{clientId:client.id,client:client.name,address:client.address}:undefined} onCreated={()=>setNotice("Tarea guardada. Consúltala en Mis Tareas.")}/>
+{client?.id==="529"&&<ContactosClienteDialog open={contactsOpen} customerId={client.id} customerName={client.name} addresses={ADDRESSES.filter(a=>a.customerId===client.id)} onClose={()=>setContactsOpen(false)}/>}
 <EventDetailDialog />
 <EventFormDialog />
 <CancelEventDialog />

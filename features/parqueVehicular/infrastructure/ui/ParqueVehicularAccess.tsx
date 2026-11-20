@@ -2,23 +2,31 @@
 
 import { useState } from 'react';
 import { Alert, Box, Button, InputAdornment, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
-import { Assessment, LocalShippingOutlined, QrCode2, Search } from '@mui/icons-material';
+import { Assessment, ContactPhoneOutlined, LocalShippingOutlined, QrCode2, Search } from '@mui/icons-material';
 import { useSetBreadcrumb } from '@/features/layoutMain/infrastructure/ui/BreadcrumbContext';
-import { ROLES, canSeeReport, universe } from '../../domain/fleet';
+import { ADDRESSES, CUSTOMERS, ROLES, canSeeReport, universe } from '../../domain/fleet';
 import type { Role } from '../../domain/fleet';
 import ParqueVehicularPage from './ParqueVehicularPage';
 import OtroReport from './OtroReport';
+import ContactosDireccionPage from '@/features/contactos/infrastructure/ui/ContactosDireccionPage';
+import { activeFor, customerContacts } from '@/features/contactos/domain/contactos';
+import { useContacts } from '@/features/contactos/infrastructure/ui/contactsStore';
 
 /** Entrada desde la pestaña de información general del cliente: Direcciones → Parque vehicular. */
 export default function ParqueVehicularAccess({ clientId, onCreateTask }: { clientId: string; onCreateTask: () => void }) {
   const [addressId, setAddressId] = useState('');
+  const [contactsAddressId, setContactsAddressId] = useState('');
+  const contactsState = useContacts();
   const [report, setReport] = useState(false);
   const [query, setQuery] = useState('');
   const [role, setRole] = useState<Role>('asesor');
   const addresses = universe(role, clientId);
   const current = addresses.find(a => a.id === addressId);
-  useSetBreadcrumb(['Clientes', 'Listado de clientes', 'Detalle', ...(current ? [current.label, 'Parque vehicular'] : report ? ['Valores «Otro»'] : [])]);
+  const contactsAddress = ADDRESSES.find(a => a.id === contactsAddressId);
+  const contactsHere = (id: string) => customerContacts(contactsState, clientId).filter(c => activeFor(contactsState, c.id).some(a => a.addressId === id)).length;
+  useSetBreadcrumb(['Clientes', 'Listado de clientes', 'Detalle', ...(current ? [current.label, 'Parque vehicular'] : contactsAddress ? [contactsAddress.label, 'Contactos'] : report ? ['Valores «Otro»'] : [])]);
   if (current) return <ParqueVehicularPage key={current.id + role} customerId={clientId} addressId={current.id} role={role} onBack={() => setAddressId('')} />;
+  if (contactsAddress) return <ContactosDireccionPage customerId={clientId} customerName={CUSTOMERS.find(c => c.id === clientId)?.name ?? clientId} address={contactsAddress} addresses={ADDRESSES.filter(a => a.customerId === clientId)} onBack={() => setContactsAddressId('')} />;
   if (report) return <OtroReport onBack={() => setReport(false)} />;
   const filtered = addresses.filter(a => `${a.label} ${a.street}`.toLocaleLowerCase('es').includes(query.toLocaleLowerCase('es')));
   return <Box sx={{ mt: 3 }}>
@@ -39,6 +47,7 @@ export default function ParqueVehicularAccess({ clientId, onCreateTask }: { clie
         <Typography sx={{ mt: .5, overflowWrap: 'anywhere' }}>{a.street}</Typography>
         <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mt: 1.5 }}>
           <Button variant="outlined" size="small" startIcon={<LocalShippingOutlined />} onClick={() => setAddressId(a.id)} aria-label={`Parque vehicular de ${a.label}`}>Parque vehicular</Button>
+          <Button variant="outlined" size="small" startIcon={<ContactPhoneOutlined />} onClick={() => setContactsAddressId(a.id)} aria-label={`Contactos de ${a.label}`}>Contactos ({contactsHere(a.id)})</Button>
           {a.id === '529-BASE' && <Button size="small" onClick={onCreateTask}>Crear tarea desde dirección (simulación)</Button>}
         </Stack>
       </Paper>
