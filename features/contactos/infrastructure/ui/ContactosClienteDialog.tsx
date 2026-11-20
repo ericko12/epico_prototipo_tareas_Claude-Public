@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Snackbar, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { Add, CheckCircle, EditOutlined } from '@mui/icons-material';
-import { DECIDES_LABEL, activeFor, createContact, customerContacts, missing, sortContacts, updateContact } from '../../domain/contactos';
+import { Add, CheckCircle, DeleteOutline, EditOutlined } from '@mui/icons-material';
+import { DECIDES_LABEL, activeFor, canDelete, createContact, customerContacts, deleteContact, missing, sortContacts, updateContact } from '../../domain/contactos';
 import type { Contact } from '../../domain/contactos';
 import { setContactsState, useContacts } from './contactsStore';
 import ContactDialog from './ContactDialog';
@@ -18,6 +18,7 @@ export default function ContactosClienteDialog({ open, customerId, customerName,
   const state = useContacts();
   const [dialog, setDialog] = useState<{ contact?: Contact } | null>(null);
   const [notice, setNotice] = useState('');
+  const [toDelete, setToDelete] = useState<Contact | null>(null);
   const list = sortContacts(customerContacts(state, customerId));
   const where = (c: Contact) => activeFor(state, c.id).map(a => addresses.find(x => x.id === a.addressId)?.label ?? a.addressId);
 
@@ -38,11 +39,15 @@ export default function ContactosClienteDialog({ open, customerId, customerName,
                 <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ mt: .5 }}>
                   {c.area ? <Chip size="small" label={c.area} /> : <Chip size="small" variant="outlined" color="warning" label="Área: falta" />}
                   {c.decides && <Chip size="small" color="primary" icon={<CheckCircle />} label={DECIDES_LABEL} />}
+                  {c.principal && <Chip size="small" variant="outlined" label="Principal" />}
                   {missing(c).includes('Correo') && <Chip size="small" variant="outlined" color="warning" label="Correo: falta" />}
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: .75 }}>{at.length ? `Direcciones: ${at.join(', ')}` : 'Sin dirección asociada'}</Typography>
               </Box>
-              <Button size="small" variant="outlined" startIcon={<EditOutlined />} onClick={() => setDialog({ contact: c })} sx={{ minHeight: 40, alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>Editar</Button>
+              <Stack direction="row" gap={1} sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
+                <Button size="small" variant="outlined" startIcon={<EditOutlined />} onClick={() => setDialog({ contact: c })} sx={{ minHeight: 40 }}>Editar</Button>
+                {canDelete(c) && <Button size="small" color="error" startIcon={<DeleteOutline />} onClick={() => setToDelete(c)} sx={{ minHeight: 40 }} aria-label={`Eliminar a ${c.name}`}>Eliminar</Button>}
+              </Stack>
             </Stack>
           </Paper>;
         })}</Stack>
@@ -52,6 +57,17 @@ export default function ContactosClienteDialog({ open, customerId, customerName,
     {dialog && <ContactDialog key={dialog.contact?.id ?? 'new'} open customerName={customerName} contact={dialog.contact}
       onClose={() => setDialog(null)}
       onSave={form => { setContactsState(s => dialog.contact ? updateContact(s, dialog.contact.id, form) : createContact(s, customerId, form)); setNotice(dialog.contact ? 'Contacto actualizado.' : 'Contacto agregado al cliente, sin dirección asociada.'); setDialog(null); }} />}
+    <Dialog open={!!toDelete} onClose={() => setToDelete(null)} maxWidth="xs" fullWidth aria-labelledby="delete-contact-title">
+      <DialogTitle id="delete-contact-title" sx={{ textTransform: 'uppercase', fontWeight: 700 }}>Eliminar contacto</DialogTitle>
+      <DialogContent dividers>
+        <Typography><b>{toDelete?.name}</b> dejará de aparecer en el cliente{toDelete && where(toDelete).length ? ` y en ${where(toDelete).join(', ')}` : ''}.</Typography>
+        {toDelete && where(toDelete).length > 0 && <Typography color="text.secondary" sx={{ mt: 1 }}>Sus vínculos quedan en el histórico de cada dirección con el motivo «Contacto eliminado».</Typography>}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <Button variant="outlined" onClick={() => setToDelete(null)} sx={{ minHeight: 44 }}>Cancelar</Button>
+        <Button variant="contained" color="error" onClick={() => { setContactsState(s => deleteContact(s, toDelete!.id)); setNotice('Contacto eliminado.'); setToDelete(null); }} sx={{ minHeight: 44 }}>Eliminar</Button>
+      </DialogActions>
+    </Dialog>
     <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice('')} message={notice} />
   </>;
 }

@@ -7,6 +7,7 @@
   const AREAS = ['Administración', 'Compras', 'Contabilidad', 'Gerencia', 'Recepción'];
   const REASONS = ['Ya no trabaja ahí', 'Cambió de dirección', 'Dato capturado por error', 'Otro'];
   const SYSTEM_REASON = 'Dirección inactiva';
+  const DELETED_REASON = 'Contacto eliminado';
   const DECIDES = 'Decide la compra';
   const USER = 'Asesor (demo)';
   const MSG = {
@@ -24,7 +25,7 @@
     contacts: [
       { id: 'M1', name: 'Laura Méndez Ortiz', area: 'Compras', decides: true, rows: [{ number: '3312345678', ext: '', email: 'compras@demo305.mx' }, { number: '3336001234', ext: '105', email: '' }] },
       { id: 'M2', name: 'Ricardo Salas', area: 'Recepción', decides: false, rows: [{ number: '3336001200', ext: '101', email: 'recepcion@demo305.mx' }] },
-      { id: 'M3', name: 'Patricia Núñez', area: '', decides: false, rows: [{ number: '3398765432', ext: '', email: 'pnunez@demo305.mx' }] },
+      { id: 'M3', name: 'Patricia Núñez', principal: true, area: '', decides: false, rows: [{ number: '3398765432', ext: '', email: 'pnunez@demo305.mx' }] },
       { id: 'M4', name: 'COMPRAS', area: '', decides: false, rows: [{ number: '3336001000', ext: '', email: '' }] },
       { id: 'M5', name: 'Jorge Treviño Garza', area: 'Gerencia', decides: true, rows: [{ number: '8187654321', ext: '', email: 'jtrevino@demo305.mx' }] },
       { id: 'M6', name: 'Ana Ruiz', area: 'Administración', decides: false, rows: [{ number: '3311112222', ext: '', email: 'aruiz@demo305.mx' }] },
@@ -57,13 +58,15 @@
   const label = id => addresses.find(a => a.id === id)?.label ?? id;
 
   // ---------- Reglas (iguales a la versión de escritorio) ----------
+  const live = () => state.contacts.filter(c => !c.deleted);
+  const canDelete = c => !c.principal && !c.deleted;
   const activeFor = cid => state.associations.filter(a => a.contactId === cid && !a.to);
   const sort = list => [...list].sort((a, b) => Number(b.decides) - Number(a.decides) || a.name.localeCompare(b.name, 'es'));
   const missing = c => [...(c.area ? [] : ['Área de contacto']), ...(c.rows.some(r => r.email.trim()) ? [] : ['Correo'])];
   function view(addressId) {
-    const here = sort(state.contacts.filter(c => activeFor(c.id).some(a => a.addressId === addressId)));
-    const without = sort(state.contacts.filter(c => activeFor(c.id).length === 0));
-    const elsewhere = sort(state.contacts.filter(c => !here.includes(c) && !without.includes(c)));
+    const here = sort(live().filter(c => activeFor(c.id).some(a => a.addressId === addressId)));
+    const without = sort(live().filter(c => activeFor(c.id).length === 0));
+    const elsewhere = sort(live().filter(c => !here.includes(c) && !without.includes(c)));
     const history = state.associations.filter(a => a.addressId === addressId && a.to).sort((a, b) => b.to.localeCompare(a.to));
     return { here, without, elsewhere, history };
   }
@@ -224,7 +227,7 @@
       const rows = f.rows.filter((r, i) => i === 0 || r.number || r.email);
       if (contact) Object.assign(contact, { ...f, name: f.name.trim(), rows });
       else {
-        const c = { id: newId('M'), ...f, name: f.name.trim(), rows };
+        const c = { id: newId('M'), ...f, name: f.name.trim(), rows, principal: live().length === 0 };
         state.contacts.push(c);
         if (fromAddress) associate(c.id, fromAddress.id);
       }
@@ -272,17 +275,40 @@
   document.body.append(list);
   function renderClientList() {
     if (!list.open) return;
-    const all = sort(state.contacts);
+    const all = sort(live());
     list.querySelector('[data-items]').innerHTML = all.map((c, i) => {
       const where = activeFor(c.id).map(a => label(a.addressId));
       return '<article class="card ct-card"><div class="ct-name">' + (i + 1) + ' - ' + esc(c.name) + '</div><div class="ct-tags">'
         + (c.area ? '<span class="tag">' + esc(c.area) + '</span>' : '<span class="tag ct-tag-warn">Área: falta</span>')
-        + (c.decides ? '<span class="tag ct-tag-decide">✓ ' + DECIDES + '</span>' : '') + (missing(c).includes('Correo') ? '<span class="tag ct-tag-warn">Correo: falta</span>' : '') + '</div>'
+        + (c.decides ? '<span class="tag ct-tag-decide">✓ ' + DECIDES + '</span>' : '') + (c.principal ? '<span class="tag" style="background:#fff;border:1px solid var(--ep-neutral)">Principal</span>' : '') + (missing(c).includes('Correo') ? '<span class="tag ct-tag-warn">Correo: falta</span>' : '') + '</div>'
         + '<div class="sub">' + (where.length ? 'Direcciones: ' + esc(where.join(', ')) : 'Sin dirección asociada') + '</div>'
-        + '<div class="ct-actions"><button type="button" class="btn alt" data-edit="' + c.id + '"><span class="mi" style="font-size:17px">edit</span> Editar</button></div></article>';
+        + '<div class="ct-actions"><button type="button" class="btn alt" data-edit="' + c.id + '"><span class="mi" style="font-size:17px">edit</span> Editar</button>'
+        + (canDelete(c) ? '<button type="button" class="btn text" style="color:#D32F2F" data-delete="' + c.id + '" aria-label="Eliminar a ' + esc(c.name) + '"><span class="mi" style="font-size:17px">delete</span> Eliminar</button>' : '') + '</div></article>';
     }).join('');
     list.querySelectorAll('[data-edit]').forEach(b => { b.onclick = () => openForm(state.contacts.find(c => c.id === b.dataset.edit)); });
+    list.querySelectorAll('[data-delete]').forEach(b => { b.onclick = () => openDelete(state.contacts.find(c => c.id === b.dataset.delete)); });
   }
+  // ---------- Eliminar (solo desde el cliente, con confirmación, como hoy; clar. 27 a 30) ----------
+  const del = document.createElement('dialog');
+  del.setAttribute('aria-labelledby', 'ctDelTitle');
+  document.body.append(del);
+  function openDelete(c) {
+    const where = activeFor(c.id).map(a => label(a.addressId));
+    del.innerHTML = '<div class="dlg-head"><h3 id="ctDelTitle">Eliminar contacto</h3><button class="btn text" data-x aria-label="Cerrar">✕</button></div><div class="dlg-body"><div class="group">'
+      + '<div class="sub"><b>' + esc(c.name) + '</b> dejará de aparecer en el cliente' + (where.length ? ' y en ' + esc(where.join(', ')) : '') + '.</div>'
+      + (where.length ? '<div class="sub">Sus vínculos quedan en el histórico de cada dirección con el motivo «' + DELETED_REASON + '».</div>' : '') + '</div></div>'
+      + '<div class="dlg-foot"><button type="button" class="btn alt" data-x>Cancelar</button><button type="button" class="btn" style="background:#D32F2F;border-color:#D32F2F" data-ok>Eliminar</button></div>';
+    del.querySelectorAll('[data-x]').forEach(b => { b.onclick = () => del.close(); });
+    del.querySelector('[data-ok]').onclick = () => {
+      const now = new Date().toISOString();
+      c.deleted = now;
+      state.associations.forEach(a => { if (a.contactId === c.id && !a.to) Object.assign(a, { to: now, reason: DELETED_REASON, by: USER }); });
+      persist(); del.close(); renderClientList(); notify('Contacto eliminado.');
+    };
+    del.showModal();
+    del.querySelector('[data-x]').focus();
+  }
+
   function openClientContacts() {
     list.innerHTML = '<div class="dlg-head"><h3 id="ctListTitle">Contactos del cliente</h3><button class="btn text" data-x aria-label="Cerrar">✕</button></div>'
       + '<div class="dlg-body"><div class="sub"><b>CLIENTE</b></div><div class="ct-name" style="margin-bottom:10px">' + esc(activeCustomer.name) + '</div>'

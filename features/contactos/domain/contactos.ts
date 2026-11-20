@@ -15,6 +15,10 @@ export type Contact = {
   decides: boolean;
   rows: Phone[];
   createdAt: string;
+  /** Contacto principal del cliente: como hoy, no se elimina (clar. 28). */
+  principal?: boolean;
+  /** Fecha de eliminación; el registro se conserva para el histórico (clar. 27). */
+  deleted?: string;
 };
 export type Association = {
   id: string;
@@ -34,6 +38,7 @@ export type ContactsState = { contacts: Contact[]; associations: Association[]; 
 export const AREAS = ['Administración', 'Compras', 'Contabilidad', 'Gerencia', 'Recepción'];
 export const REASONS = ['Ya no trabaja ahí', 'Cambió de dirección', 'Dato capturado por error', 'Otro'];
 export const SYSTEM_REASON = 'Dirección inactiva';
+export const DELETED_REASON = 'Contacto eliminado';
 export const OTHER_REASON_MAX = 120;
 export const USER = 'Luis Galván';
 
@@ -55,7 +60,7 @@ export const INITIAL_STATE: ContactsState = {
   contacts: [
     { id: 'C1', customerId: '529', name: 'Laura Méndez Ortiz', area: 'Compras', decides: true, rows: [{ number: '3312345678', ext: '', email: 'compras@transportesdemo.mx' }, { number: '3336001234', ext: '105', email: '' }], createdAt: d('2025-03-10T10:00') },
     { id: 'C2', customerId: '529', name: 'Ricardo Salas', area: 'Recepción', decides: false, rows: [{ number: '3336001200', ext: '101', email: 'recepcion@transportesdemo.mx' }], createdAt: d('2025-06-02T12:00') },
-    { id: 'C3', customerId: '529', name: 'Patricia Núñez', area: '', decides: false, rows: [{ number: '3398765432', ext: '', email: 'pnunez@transportesdemo.mx' }], createdAt: d('2022-08-15T09:00') },
+    { id: 'C3', customerId: '529', name: 'Patricia Núñez', principal: true, area: '', decides: false, rows: [{ number: '3398765432', ext: '', email: 'pnunez@transportesdemo.mx' }], createdAt: d('2022-08-15T09:00') },
     { id: 'C4', customerId: '529', name: 'COMPRAS', area: '', decides: false, rows: [{ number: '3336001000', ext: '', email: '' }], createdAt: d('2021-01-20T09:00') },
     { id: 'C5', customerId: '529', name: 'Jorge Treviño Garza', area: 'Gerencia', decides: true, rows: [{ number: '8187654321', ext: '', email: 'jtrevino@transportesdemo.mx' }], createdAt: d('2024-11-05T16:00') },
     { id: 'C6', customerId: '529', name: 'Ana Ruiz', area: 'Administración', decides: false, rows: [{ number: '3311112222', ext: '', email: 'aruiz@transportesdemo.mx' }], createdAt: d('2024-02-01T11:00') },
@@ -72,7 +77,7 @@ export const INITIAL_STATE: ContactsState = {
 
 export const isActive = (a: Association) => !a.to;
 export const activeFor = (s: ContactsState, contactId: string) => s.associations.filter(a => a.contactId === contactId && isActive(a));
-export const customerContacts = (s: ContactsState, customerId: string) => s.contacts.filter(c => c.customerId === customerId);
+export const customerContacts = (s: ContactsState, customerId: string) => s.contacts.filter(c => c.customerId === customerId && !c.deleted);
 
 /** Primero quien decide la compra y después por nombre; sin buscador ni paginación (clar. 12). */
 export const sortContacts = (list: Contact[]) => [...list].sort((a, b) => Number(b.decides) - Number(a.decides) || a.name.localeCompare(b.name, 'es'));
@@ -122,7 +127,7 @@ const id = (p: string) => `${p}-${Date.now().toString(36)}-${(seq++).toString(36
 /** Alta: desde la Dirección queda asociada; desde el Cliente queda «Sin dirección asociada» (clar. 10). */
 export function createContact(s: ContactsState, customerId: string, form: Pick<Contact, 'name' | 'area' | 'decides' | 'rows'>, addressId?: string): ContactsState {
   const now = new Date().toISOString();
-  const contact: Contact = { id: id('C'), customerId, ...form, name: form.name.trim(), rows: form.rows.filter((r, i) => i === 0 || r.number || r.email), createdAt: now };
+  const contact: Contact = { id: id('C'), customerId, ...form, name: form.name.trim(), rows: form.rows.filter((r, i) => i === 0 || r.number || r.email), createdAt: now, principal: customerContacts(s, customerId).length === 0 };
   const associations = addressId ? [...s.associations, { id: id('A'), contactId: contact.id, addressId, from: now, to: '', reason: '', by: USER, bulk: false }] : s.associations;
   return { ...s, contacts: [...s.contacts, contact], associations };
 }
@@ -141,6 +146,22 @@ export function associate(s: ContactsState, contactId: string, addressId: string
 export function inactivate(s: ContactsState, associationId: string, reason: string, by = USER): ContactsState {
   const now = new Date().toISOString();
   return { ...s, associations: s.associations.map(a => a.id === associationId && isActive(a) ? { ...a, to: now, reason, by } : a) };
+}
+
+/**
+ * Eliminar desde el Cliente, con confirmación y sin motivo, como hoy; el principal no se elimina.
+ * Sale del Cliente y de sus Direcciones, y sus vínculos vigentes pasan al histórico (clar. 27 a 30).
+ */
+export const canDelete = (c: Contact) => !c.principal && !c.deleted;
+export function deleteContact(s: ContactsState, contactId: string, by = USER): ContactsState {
+  const c = s.contacts.find(x => x.id === contactId);
+  if (!c || !canDelete(c)) return s;
+  const now = new Date().toISOString();
+  return {
+    ...s,
+    contacts: s.contacts.map(x => x.id === contactId ? { ...x, deleted: now } : x),
+    associations: s.associations.map(a => a.contactId === contactId && isActive(a) ? { ...a, to: now, reason: DELETED_REASON, by } : a),
+  };
 }
 
 /** Logística inactiva la Dirección: sus Asociaciones pasan al histórico con motivo del sistema (clar. 8). */

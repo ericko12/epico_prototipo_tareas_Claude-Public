@@ -23,6 +23,7 @@ El panel morado **«SIMULACIÓN · no es parte del producto»** permite cambiar 
 - **Validación como hoy:** Nombre, Teléfono y Correo obligatorios en la primera fila, 10 dígitos por teléfono y extensión opcional de hasta 5 dígitos, habilitada al tener 10 (clar. 6 y 16). Cerrar con cambios pide confirmación, como «Cerrar creación» en Épico.
 - **Contactos heredados:** se consultan con el faltante señalado («Área: falta», «Correo: falta») y lo piden al editar (clar. 6, 11). El registro «COMPRAS» muestra el caso de un contacto que es un área (clar. 19).
 - **Inactivar vínculo:** motivo de la lista («Ya no trabaja ahí», «Cambió de dirección», «Dato capturado por error», «Otro» con texto). El contacto sigue en el cliente y en sus otras direcciones. Volver a asociarlo crea otro periodo en el histórico (clar. 13 y 14).
+- **Eliminar contacto** (acción vigente de Épico): solo desde los contactos del cliente, con confirmación y sin motivo. El principal (Patricia Núñez en los ejemplos) no tiene la acción. El contacto sale del cliente y de sus direcciones, y sus vínculos quedan en el histórico con «Contacto eliminado» (clar. 27 a 30).
 - **Dirección inactiva:** sus vínculos pasan al histórico con el motivo «Dirección inactiva» y no se puede agregar ni asociar. Quien no tenía otra dirección queda «Sin dirección asociada» (clar. 8).
 
 ## No incluido
@@ -31,11 +32,11 @@ El panel morado **«SIMULACIÓN · no es parte del producto»** permite cambiar 
 - Asociación masiva al arranque (clar. 9): el cliente 529 tiene tres direcciones, así que no aplica. Las reglas están en el dominio, no en pantalla.
 - El alcance por cartera (clar. 17) no se simula: la lista de direcciones sigue el selector de rol de Parque vehicular.
 
-Los datos se guardan en el navegador (`epico-tareas-contactos-v1`). «Restaurar ejemplos» vuelve a los datos iniciales.
+Los datos se guardan en el navegador (`epico-tareas-contactos-v1`). «Restaurar ejemplos» vuelve a los datos iniciales; úsalo si probaste antes del 20-nov, porque los datos guardados entonces no marcan al contacto principal.
 
 ## Verificación
 
-- `node tests/contactos.test.cjs`: 16 verificaciones de las reglas (vista por dirección, faltantes, obligatorios, alta, asociación sin duplicar, varias direcciones, inactivación, nuevo periodo y dirección inactiva).
+- `node tests/contactos.test.cjs`: 20 verificaciones de las reglas (vista por dirección, faltantes, obligatorios, alta, asociación sin duplicar, varias direcciones, inactivación, nuevo periodo, dirección inactiva y eliminación).
 - `npx tsc --noEmit` y `next build` sin errores.
 - Recorrido en el navegador: escritorio y 320 px, sin desborde horizontal de la página y sin errores en consola.
 - Versión móvil (cliente 305) recorrida a 320 px: asociar, alta con validación, inactivar con «Otro», dirección inactiva, contactos desde el encabezado y alta desde el cliente. Los demás clientes conservan su diálogo de contacto y Parque vehicular sigue igual.

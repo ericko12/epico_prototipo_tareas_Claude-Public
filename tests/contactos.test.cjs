@@ -31,4 +31,10 @@ s=m.inactivateAddress(s0,'529-BASE');
 assert.ok(s.associations.filter(a=>a.addressId==='529-BASE').every(a=>a.to&&a.reason==='Dirección inactiva'));
 assert.ok(m.addressView(s,'529','529-D1').withoutAddress.some(c=>c.id==='C2'));
 assert.equal(m.activeFor(s,'C1').length,1);
-console.log('16 verificaciones de contactos por dirección: OK');
+// Eliminar: deja rastro en cada Dirección; el principal no se elimina (clar. 27, 28).
+let e=m.deleteContact(s0,'C1');
+assert.equal(m.customerContacts(e,'529').some(c=>c.id==='C1'),false);
+assert.ok(e.associations.filter(a=>a.contactId==='C1').every(a=>a.to&&a.reason==='Contacto eliminado'));
+assert.equal(m.addressView(e,'529','529-D1').history.length,2);
+assert.equal(m.deleteContact(s0,'C3'),s0);
+console.log('20 verificaciones de contactos por dirección: OK');
