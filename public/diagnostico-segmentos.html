@@ -29,7 +29,7 @@ if(embedded){
 const refreshClassification = () => {
   const role = document.getElementById("role").value;
   let selector=document.getElementById("historySeller");
-  if(!selector){selector=document.createElement("select");selector.id="historySeller";selector.setAttribute("aria-label","Vendedor para historial de niveles (demo)");["CV-207-01","CV-207-02"].forEach(id=>selector.add(new Option(id+" · ficticio",id)));document.getElementById("classHistoryButton").before(selector);selector.onchange=refreshClassification;}
+  if(!selector){selector=document.createElement("select");selector.id="historySeller";selector.setAttribute("aria-label","Vendedor para historial de niveles (demo)");(integrationParams.get("clientId")==="207"?["CV-207-01","CV-207-02"]:[integrationParams.get("relationId"),integrationParams.get("advisorRelationId")].filter(Boolean)).forEach(id=>selector.add(new Option(id+" · ficticio",id)));document.getElementById("classHistoryButton").before(selector);selector.onchange=refreshClassification;}
   selector.hidden=!(role==="Administrador"&&document.getElementById("supportPermission")?.checked);
   renderImportedClassifications(integrationParams.get("clientId") || "131",
     role === "Asesor" ? integrationParams.get("advisorRelationId") :

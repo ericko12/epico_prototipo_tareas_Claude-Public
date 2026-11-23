@@ -250,6 +250,7 @@
       const counter=el('closureFields').querySelector(`[data-counter="${input.dataset.commercial}"]`);if(counter)counter.textContent=input.value.length+'/500';
     }));
     el('commercialEdit').hidden=!!commercialDraft||!canCommercial();
+    el('commercialEdit').textContent=records.has(context())?'Modificar información':'Iniciar levantamiento';
     el('commercialSave').hidden=!commercialDraft && !(isDirection && editing);
     el('commercialCancel').hidden=!commercialDraft && !(isDirection && editing);
     if(isDirection&&editing){if(mobile)el('saveRow').style.display='none';else profileButton().hidden=true;}
