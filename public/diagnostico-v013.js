@@ -201,6 +201,7 @@
     for(const child of host.children)if(child!==closure)child.hidden=!visible;
     ['closureFields','closureContext','closureCompletion','directionAddress','openDirection','directionBack','fleetRegistration'].forEach(id=>{if(!visible)el(id).hidden=true;});
     if(visible){el('closureContext').hidden=false;el('closureCompletion').hidden=false;}
+    fieldHost().hidden=!visible||!channelAllowed()||(segment()==='empresas'&&!directionView);
     if(el('decisionPositionPanel'))el('decisionPositionPanel').hidden=!visible||!channelAllowed()||(segment()==='empresas'&&!directionView);
     if(mobile)refreshMobileClassification();else refreshClassification();
     el('closureFields').hidden=!visible||!channelAllowed();
@@ -376,7 +377,17 @@
   let previousRole=role();el('role').onchange=()=>{const next=role();if(!confirmLeave()){el('role').value=previousRole;return;}previousRole=next;redraw();};
   ['KAM','Telemarketing'].forEach(value=>{if(![...el('role').options].some(o=>o.value===value))el('role').add(new Option(value,value));});
   if(mobile){
-    render=()=>{originalRender();decorateProfile();renderCommercial();};
+    render=redraw;
+    const originalOpenClient=openClient;
+    openClient=id=>{
+      editing=false;commercialDraft=null;directionView=false;
+      originalOpenClient(id);
+      const currentSegment=segment();
+      el('masterSegment').value=currentSegment==='Moto part'?'Refa':currentSegment;
+      el('advisorChannel').value=params.get('advisorSegment')||currentSegment;
+      historyOpen=false;
+      redraw();
+    };
     toggleEdit=beginProfile;saveEdit=saveProfile;cancelEdit=()=>{if(confirmLeave())redraw();};
     const oldSegment=segment();let previousSegment=oldSegment;
     changeSegment=()=>{const next=segment();if(!confirmLeave()){el('segment').value=previousSegment;return;}previousSegment=next;directionView=false;redraw();el('recoverProfile').hidden=!profileHistory.has(profileContext());};

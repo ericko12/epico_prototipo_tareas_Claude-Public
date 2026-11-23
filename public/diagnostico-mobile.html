@@ -140,7 +140,7 @@ dialog::backdrop{background:#00000066}
 <button type="button" onclick="openVisitDialog('Actual')" aria-label="Ver visitas del mes actual"><span>Actual</span><div class="visit-stat"><span class="mi">work</span><b>0</b> Visitas</div><div class="visit-divider"></div><div class="visit-stat"><span class="mi">hourglass_bottom</span><b>0</b> Horas</div></button></div>
 <div class="radiograph-more"><h3>Crédito</h3><p class="sub">La información financiera está representada con datos de demostración.</p><button class="btn alt full" onclick="notify('Desglose de crédito: consulta simulada')">Ver desglose de crédito</button></div>
 <div class="radiograph-more"><h3>Productos dejados de comprar</h3><p class="sub">Sin registros de demostración.</p></div>
-<div class="diagnosis-cta"><h3>Diagnóstico comercial</h3><p class="sub">Funcionalidad nueva: clasificaciones recibidas por Excel, información adicional e historial.</p><button class="btn full" onclick="openDiagnosis()">Ver / actualizar diagnóstico <span class="mi" style="font-size:18px">arrow_forward</span></button></div>
+<div class="diagnosis-cta"><h3>Diagnóstico comercial · v0.17</h3><p class="sub">Funcionalidad nueva: clasificaciones recibidas por Excel, información adicional e historial.</p><button class="btn full" onclick="openDiagnosis()">Ver / actualizar diagnóstico <span class="mi" style="font-size:18px">arrow_forward</span></button></div>
 </div></section>
 <section id="fleetStage" class="flow-screen group hidden" aria-label="Parque vehicular"></section>
 <div id="diagnosisStage" class="hidden"><div class="diagnosis-top"><button class="btn text" onclick="openClient();switchDetailTab('radio')"><span class="mi" style="font-size:18px">arrow_back</span> Volver a Radiografía</button><div class="sub" id="diagnosisClientName">Cliente demo · Diagnóstico comercial</div></div><div class="diagnosis-tabs"><button class="selected" id="navSummary" onclick="goto('summary')">Resumen</button><button id="navProfile" onclick="goto('profile')">Formulario</button><button id="navChanges" onclick="goto('changes')">Cambios</button></div>
@@ -213,4 +213,4 @@ window.addEventListener("DOMContentLoaded",()=>{
  if (demoCustomers.some(client=>client.id===source.get("clientId"))) openClient(source.get("clientId"));
  else showScreen("search");
 });
-</script><script src="./parque-vehicular-mobile.js"></script><script src="./contactos-mobile.js"></script><script src="./diagnostico-v013.js?v=017"></script></body></html>
+</script><script src="./parque-vehicular-mobile.js"></script><script src="./contactos-mobile.js"></script><script src="./diagnostico-v013.js?v=017-mobile2"></script></body></html>
