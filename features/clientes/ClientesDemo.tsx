@@ -51,7 +51,7 @@ const openTask=()=>setTaskOpen(true);
 const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.activityType==="visit").map(e=>({id:String(e.id),label:`Visita · ${e.date??"Hoy"}, ${e.time}`})):[];
 const currentVisit=client?agenda.profiles.luis.events.find(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.status==="Check-in activo"):undefined;
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
-{!client&&<CommercialLevelUpload relations={relations} canUpload={canUpload&&agenda.role==="support"} setCanUpload={setCanUpload}/>}
+{!client&&<CommercialLevelUpload relations={relations} canUpload={canUpload&&agenda.role==="support"} setCanUpload={enabled=>{setCanUpload(enabled);if(enabled)agenda.setRole("support")}}/>}
 <Box sx={{display:client?"none":"block"}}><ClientList clients={clients} onOpen={selected=>{setDetail(selected);setTab(0);setDiagnosisRequest(false);agenda.setDetail({event:null})}}/></Box>
 {client&&<>
 <Button startIcon={<ArrowBack/>} onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{mb:2}}>Listado de clientes</Button>
