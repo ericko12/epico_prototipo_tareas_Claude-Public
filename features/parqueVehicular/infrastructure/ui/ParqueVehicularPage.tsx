@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { Add, ArrowBack, CheckCircle, EditOutlined, ErrorOutline, InfoOutlined, LocalShippingOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { useSetBreadcrumb } from '@/features/layoutMain/infrastructure/ui/BreadcrumbContext';
-import { ADDRESSES, CUSTOMERS, EMPTY_FORM, FIELD_LABEL, ROLES, canAccessAddress, canEdit, canRegister, coincide, editGroup, formOf, hasBody, isOtro, needsResolution, reviewConflicts, saveDrafts, shown, sortGroups, userOf, validateFleet } from '../../domain/fleet';
+import { ADDRESSES, CUSTOMERS, EMPTY_FORM, FIELD_LABEL, JUSTIFICATION_MAX, ROLES, SESSION_FULL, SESSION_MAX, yearsLabel, canAccessAddress, canEdit, canRegister, coincide, editGroup, formOf, hasBody, isOtro, needsResolution, reviewConflicts, saveDrafts, shown, sortGroups, userOf, validateFleet } from '../../domain/fleet';
 import type { Draft, Errors, Fleet, FleetForm, OtroField, Role, SaveResult } from '../../domain/fleet';
 import FleetFields from './FleetFields';
 import { fmtDate, fmtDateTime, useFleetStore } from './fleetStore';
@@ -19,7 +19,7 @@ function Val({ g, f }: { g: FleetForm; f: OtroField }) {
   const v = shown(g, f);
   return <>{v || '—'}{isOtro(g, f) && NO_CAT}</>;
 }
-const years = (g: FleetForm) => g.from || g.to ? `${g.from || g.to}–${g.to || g.from}` : '—';
+const years = yearsLabel;
 const summary = (g: FleetForm) => <><Val g={g} f="brand" /> / <Val g={g} f="model" /></>;
 
 export default function ParqueVehicularPage({ customerId, addressId, role, onBack }: { customerId: string; addressId: string; role: Role; onBack: () => void }) {
@@ -69,6 +69,7 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
   function addToSession(): boolean {
     const e = validateFleet(form); setErrors(e);
     if (Object.keys(e).length) { focusError(); return false; }
+    if (!editingDraft && drafts.length >= SESSION_MAX) { setNotice(SESSION_FULL); return false; }
     const clean = formOf({ ...form, ...(hasBody(form.type) ? {} : { body: '', bodyText: '', bodyModel: '', bodyModelText: '' }) });
     if (editingDraft) setDrafts(ds => ds.map(d => d.tempId === editingDraft ? { ...d, ...clean } : d));
     else setDrafts(ds => [...ds, { ...clean, tempId: `S${++tempSeq}`, justification: '' }]);
@@ -130,7 +131,7 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
         <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: 'none', md: 'block' } }}><Table><TableHead><TableRow>{['Folio', 'Tipo', 'Marca / Modelo', 'Años', 'Unidades', 'Último levantamiento', ''].map(h => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead><TableBody>{addressGroups.map(g => <TableRow key={g.id} hover><TableCell><Button onClick={() => { setSelectedId(g.id); setScreen('detail'); }}>{g.id}</Button></TableCell><TableCell>{g.type}</TableCell><TableCell>{summary(g)}</TableCell><TableCell>{years(g)}</TableCell><TableCell>{g.units}</TableCell><TableCell>{fmtDate(g.lastSurvey)}</TableCell><TableCell><Button startIcon={<VisibilityOutlined />} onClick={() => { setSelectedId(g.id); setScreen('detail'); }}>Ver detalle</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer>
         <Stack spacing={2} sx={{ display: { xs: 'flex', md: 'none' } }}>{addressGroups.map(g => <Card key={g.id} variant="outlined"><CardContent><Typography fontWeight={700}>{summary(g)}</Typography><Typography variant="body2">{g.type}</Typography><Typography sx={{ my: 1 }}>{years(g)} · {g.units} unidades · Último levantamiento: {fmtDate(g.lastSurvey)}</Typography><Button onClick={() => { setSelectedId(g.id); setScreen('detail'); }}>Ver detalle · {g.id}</Button></CardContent></Card>)}</Stack>
       </>}
-      {!mayRegister && <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Solo el asesor que tiene asignada esta Dirección registra parque vehicular.</Typography>}
+      {!mayRegister && <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Solo el asesor que tiene a este Cliente en su cartera registra parque vehicular.</Typography>}
     </>}
 
     {screen === 'capture' && <Box component="form" noValidate onSubmit={e => { e.preventDefault(); addAndReview(); }}>
@@ -185,13 +186,13 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
     {screen === 'edit' && selected && <Box component="form" noValidate onSubmit={e => { e.preventDefault(); saveEdit(); }}>
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
         <FleetFields form={form} errors={errors} onChange={setForm} />
-        {(() => { const others = addressGroups.filter(g => g.id !== selected.id && coincide(form, g)); return others.length > 0 && <Alert severity="warning" sx={{ mt: 2 }}>{COINCIDENCE} Coincide con el grupo {others.map(g => g.id).join(', ')}.<TextField fullWidth size="small" label="Justificación" required value={editJustification} onChange={e => setEditJustification(e.target.value)} sx={{ mt: 1.5, bgcolor: 'background.paper' }} /></Alert>; })()}
+        {(() => { const others = addressGroups.filter(g => g.id !== selected.id && coincide(form, g)); return others.length > 0 && <Alert severity="warning" sx={{ mt: 2 }}>{COINCIDENCE} Coincide con el grupo {others.map(g => g.id).join(', ')}.<TextField fullWidth size="small" label="Justificación" required value={editJustification} onChange={e => setEditJustification(e.target.value)} inputProps={{ maxLength: JUSTIFICATION_MAX }} helperText={`${editJustification.length}/${JUSTIFICATION_MAX}`} sx={{ mt: 1.5, bgcolor: 'background.paper' }} /></Alert>; })()}
         <TextField fullWidth size="small" label="Motivo del cambio" required value={reason} onChange={e => setReason(e.target.value)} error={!!reasonError} helperText={reasonError || 'Obligatorio en toda modificación.'} sx={{ mt: 3 }} />
       </Paper>
       <Stack direction={{ xs: 'column-reverse', sm: 'row' }} justifyContent="flex-end" spacing={1.5} sx={{ mt: 3, pb: 2 }}><Button variant="outlined" onClick={() => setScreen('detail')}>Cancelar</Button><Button type="submit" variant="contained">Guardar cambios</Button></Stack>
     </Box>}
 
-    <Dialog open={!!justifyFor} onClose={() => setJustifyFor('')} fullWidth maxWidth="sm"><DialogTitle>Justificar el grupo</DialogTitle><DialogContent><Typography variant="body2" sx={{ mb: 2 }}>Explica por qué este grupo es distinto del que ya existe. La justificación se verá en el detalle del grupo.</Typography><TextField autoFocus fullWidth multiline minRows={2} label="Justificación" value={justifyText} onChange={e => setJustifyText(e.target.value)} /></DialogContent><DialogActions><Button onClick={() => setJustifyFor('')}>Cancelar</Button><Button variant="contained" disabled={!justifyText.trim()} onClick={() => { setDrafts(ds => ds.map(d => d.tempId === justifyFor ? { ...d, justification: justifyText.trim() } : d)); setJustifyFor(''); }}>Guardar justificación</Button></DialogActions></Dialog>
+    <Dialog open={!!justifyFor} onClose={() => setJustifyFor('')} fullWidth maxWidth="sm"><DialogTitle>Justificar el grupo</DialogTitle><DialogContent><Typography variant="body2" sx={{ mb: 2 }}>Explica por qué este grupo es distinto del que ya existe. La justificación se verá en el detalle del grupo.</Typography><TextField autoFocus fullWidth multiline minRows={2} label="Justificación" value={justifyText} onChange={e => setJustifyText(e.target.value)} inputProps={{ maxLength: JUSTIFICATION_MAX }} helperText={`${justifyText.length}/${JUSTIFICATION_MAX}`} /></DialogContent><DialogActions><Button onClick={() => setJustifyFor('')}>Cancelar</Button><Button variant="contained" disabled={!justifyText.trim()} onClick={() => { setDrafts(ds => ds.map(d => d.tempId === justifyFor ? { ...d, justification: justifyText.trim() } : d)); setJustifyFor(''); }}>Guardar justificación</Button></DialogActions></Dialog>
     <Dialog open={!!peek} onClose={() => setPeek(null)} fullWidth maxWidth="xs"><DialogTitle>{peek && 'id' in peek ? `Grupo ${peek.id}` : 'Grupo de la sesión'}</DialogTitle><DialogContent>{peek && <Stack spacing={.5}><Typography>{peek.type}</Typography><Typography>{summary(peek)}</Typography>{peek.motor && <Typography>Motor: <Val g={peek} f="motor" /></Typography>}<Typography>Años: {years(peek)} · {peek.units} unidades</Typography></Stack>}</DialogContent><DialogActions><Button variant="contained" onClick={() => setPeek(null)}>Cerrar</Button></DialogActions></Dialog>
     <Dialog open={confirmCancel} onClose={() => setConfirmCancel(false)}><DialogTitle>¿Cancelar la captura?</DialogTitle><DialogContent>Los grupos que aún no guardas se descartarán.</DialogContent><DialogActions><Button onClick={() => setConfirmCancel(false)}>Seguir capturando</Button><Button variant="contained" onClick={() => { setDrafts([]); setForm({ ...EMPTY_FORM }); setEditingDraft(''); setConfirmCancel(false); setScreen('list'); }}>Descartar</Button></DialogActions></Dialog>
     <Dialog open={notes} onClose={() => setNotes(false)} fullWidth maxWidth="md"><DialogTitle>Notas para revisión · Parque vehicular</DialogTitle><DialogContent>
@@ -201,15 +202,16 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
         <li>Catálogo de Salesforce (matriz del 10-nov-2026): 27 tipos, marcas por tipo, 110 motores. Modelos solo de VOLVO y MARCOPOLO; para el resto se usa «Otro». La separación de modelos VOLVO entre autobús y servicio pesado es una muestra de la regla tipo + marca.</li>
         <li>Dos ramas: Tipo → Marca → Modelo, y en autobuses Tipo → Carrocería → Modelo de carrocería. El motor no se filtra. Cambiar la marca no borra la carrocería.</li>
         <li>«Otro (no está en la lista)» con texto obligatorio (máx. 60) en marca, modelo, carrocería, modelo de carrocería y motor. Se marca «No catalogado».</li>
-        <li>Obligatorios: tipo, marca, modelo y unidades. Años de cuatro dígitos, no futuros.</li>
+        <li>Obligatorios: tipo, marca, modelo y unidades («Este dato es obligatorio.»). Años de cuatro dígitos, no futuros; con un solo año el grupo se muestra con ese año (2019, no 2019–2019).</li>
+        <li>Límites: justificación de hasta 300 caracteres; hasta 100 grupos por sesión («Guarda estos grupos antes de capturar más.»). Si un valor sale del catálogo antes de guardar, ese grupo queda «No guardado» con el campo y el valor.</li>
         <li>Sesión de captura: los grupos quedan «Sin guardar» hasta «Revisar y guardar». Una coincidencia (misma configuración con años que se cruzan, o con años, motor o carrocería vacíos) bloquea «Guardar» hasta justificarla o quitar el grupo.</li>
-        <li>Roles («Ver el prototipo como»): el asesor registra y modifica en sus Direcciones; gerente, KAM y soporte solo consultan; el administrador funcional modifica, ve todas las Direcciones y el reporte de valores «Otro», donde los reasigna al catálogo.</li>
+        <li>Roles («Ver el prototipo como»): la cartera es por Cliente: el asesor que tiene al Cliente en su cartera registra y modifica en todas sus Direcciones (la 529 está en la cartera de Pedro y de Ana, así que Pedro también ve BASE MONTERREY); el gerente ve los Clientes de los asesores que supervisa; gerente, KAM y soporte solo consultan; el administrador funcional modifica, ve todas las Direcciones y el reporte de valores «Otro», donde los reasigna al catálogo.</li>
         <li>«Modificar» pide motivo. Solo una modificación del asesor renueva el último levantamiento.</li>
       </Box>
       <Typography fontWeight={700} sx={{ mt: 1 }}>Segunda entrega (no está en esta versión)</Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>Mover de Dirección, desactivar, reactivar, eliminar, vigencia de 12 meses («Desactualizado»), historial y migración desde Salesforce.</Typography>
       <Typography fontWeight={700}>Abierto para comentar</Typography>
-      <Typography variant="body2">Longitud máxima de la justificación y de grupos por visita; año inicial sin año final; búsqueda en listas largas (motores) y orden de los 27 tipos; catálogo real de Empresas y Merca.</Typography>
+      <Typography variant="body2">Búsqueda en listas largas (motores) y orden de los 27 tipos; catálogo real de Empresas y Merca.</Typography>
     </DialogContent><DialogActions><Button onClick={() => { reset(); setDrafts([]); setScreen('list'); setNotes(false); setNotice('Se restauraron los datos de ejemplo.'); }}>Restaurar ejemplos</Button><Button onClick={() => setNotes(false)} variant="contained">Entendido</Button></DialogActions></Dialog>
     <Snackbar open={!!notice} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} action={<Button color="inherit" size="small" onClick={() => setNotice('')}>Cerrar</Button>} />
   </Box>;

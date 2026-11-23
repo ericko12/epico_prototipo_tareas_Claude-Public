@@ -13,7 +13,7 @@ export const OTRO_MAX = 60;
 
 export type Role = 'asesor' | 'gerente' | 'kam' | 'admin' | 'soporte';
 export const ROLES: { id: Role; label: string; user: string }[] = [
-  { id: 'asesor', label: 'Asesor asignado', user: 'Pedro (vendedor 42)' },
+  { id: 'asesor', label: 'Asesor (Cliente en su cartera)', user: 'Pedro (vendedor 42)' },
   { id: 'gerente', label: 'Gerente territorial', user: 'Laura (supervisa al vendedor 42)' },
   { id: 'kam', label: 'KAM', user: 'Jorge (KAM de la Cuenta 529)' },
   { id: 'admin', label: 'Administrador funcional', user: 'Carla' },
@@ -22,8 +22,9 @@ export const ROLES: { id: Role; label: string; user: string }[] = [
 const SUPERVISED_BY_MANAGER = [SELLER_ID];
 const KAM_ACCOUNTS = ['529'];
 
-export type Customer = { id: string; name: string; rfc: string; segment: string };
-export type Address = { id: string; customerId: string; sellerId: string; label: string; street: string; shipping: string; qr: boolean };
+/** La cartera es por Cliente (relación cliente-vendedor): en Epico la Dirección no tiene vendedor (clar. 49). */
+export type Customer = { id: string; name: string; rfc: string; segment: string; sellers: string[] };
+export type Address = { id: string; customerId: string; label: string; street: string; shipping: string; qr: boolean };
 
 export const OTRO_FIELDS = ['brand', 'model', 'body', 'bodyModel', 'motor'] as const;
 export type OtroField = typeof OTRO_FIELDS[number];
@@ -50,12 +51,12 @@ const MISSING_TEXT: Record<OtroField, string> = {
 };
 
 export const CUSTOMERS: Customer[] = [
-  { id: '529', name: 'TRANSPORTES DEMO OCCIDENTE', rfc: 'TDO200101XXX', segment: 'Empresas' },
+  { id: '529', name: 'TRANSPORTES DEMO OCCIDENTE', rfc: 'TDO200101XXX', segment: 'Empresas', sellers: [SELLER_ID, '53'] },
 ];
 export const ADDRESSES: Address[] = [
-  { id: '529-BASE', customerId: '529', sellerId: SELLER_ID, label: 'BASE OPERATIVA', street: 'Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY', shipping: 'Transporte Interno', qr: true },
-  { id: '529-D1', customerId: '529', sellerId: SELLER_ID, label: 'DIRECCIÓN 1', street: 'Av. Demo Transporte 2455 · Guadalajara, Jal. · DUMMY', shipping: 'Flecha Amarilla', qr: false },
-  { id: '529-MTY', customerId: '529', sellerId: '53', label: 'BASE MONTERREY', street: 'Av. Demo Norte 120 · Monterrey, N.L. · DUMMY', shipping: 'Transporte Interno', qr: true },
+  { id: '529-BASE', customerId: '529', label: 'BASE OPERATIVA', street: 'Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY', shipping: 'Transporte Interno', qr: true },
+  { id: '529-D1', customerId: '529', label: 'DIRECCIÓN 1', street: 'Av. Demo Transporte 2455 · Guadalajara, Jal. · DUMMY', shipping: 'Flecha Amarilla', qr: false },
+  { id: '529-MTY', customerId: '529', label: 'BASE MONTERREY', street: 'Av. Demo Norte 120 · Monterrey, N.L. · DUMMY', shipping: 'Transporte Interno', qr: true },
 ];
 
 // ---------- Catálogo (clar. 23 a 28, 39) ----------
@@ -80,17 +81,21 @@ export function optionsFor(form: FleetForm, field: OtroField): string[] | undefi
   return MOTORS;
 }
 
-// ---------- Universo por rol (clar. 9, 14, 34, 43) ----------
-export function universe(role: Role, customerId: string) {
-  return ADDRESSES.filter(a => a.customerId === customerId && (
-    role === 'admin' || role === 'soporte' ||
-    (role === 'asesor' && a.sellerId === SELLER_ID) ||
-    (role === 'gerente' && SUPERVISED_BY_MANAGER.includes(a.sellerId)) ||
-    (role === 'kam' && KAM_ACCOUNTS.includes(a.customerId))));
+// ---------- Universo por rol (clar. 9, 14, 34, 43 y 49: cartera por Cliente) ----------
+const customerOf = (customerId: string) => CUSTOMERS.find(c => c.id === customerId);
+/** El Cliente está en el universo del rol; si lo está, todas sus Direcciones lo están. */
+export function inUniverse(role: Role, customerId: string) {
+  const c = customerOf(customerId);
+  if (!c) return false;
+  return role === 'admin' || role === 'soporte' ||
+    (role === 'asesor' && c.sellers.includes(SELLER_ID)) ||
+    (role === 'gerente' && c.sellers.some(s => SUPERVISED_BY_MANAGER.includes(s))) ||
+    (role === 'kam' && KAM_ACCOUNTS.includes(c.id));
 }
-export const assignedAddresses = (customerId: string, sellerId = SELLER_ID) => ADDRESSES.filter(a => a.customerId === customerId && a.sellerId === sellerId);
+export const universe = (role: Role, customerId: string) => inUniverse(role, customerId) ? ADDRESSES.filter(a => a.customerId === customerId) : [];
 export const canAccessAddress = (addressId: string, role: Role = 'asesor', customerId = '529') => universe(role, customerId).some(a => a.id === addressId);
-export const canRegister = (role: Role, address: Address) => role === 'asesor' && address.sellerId === SELLER_ID;
+/** Registra el asesor que tiene al Cliente en su cartera, en cualquiera de sus Direcciones. */
+export const canRegister = (role: Role, address: Address) => role === 'asesor' && !!customerOf(address.customerId)?.sellers.includes(SELLER_ID);
 export const canEdit = (role: Role, address: Address) => canRegister(role, address) || role === 'admin';
 export const canSeeReport = (role: Role) => role === 'admin';
 export const userOf = (role: Role) => ROLES.find(r => r.id === role)!.user;
@@ -125,20 +130,29 @@ export function wouldLose(form: FleetForm, field: keyof FleetForm) {
 
 // ---------- Validación (clar. 3, 7, 44) ----------
 export type Errors = Partial<Record<keyof FleetForm, string>>;
+/** Textos de los huecos C-2 y C-4 del contrato (clar. 51 y 53). */
+export const REQUIRED = 'Este dato es obligatorio.';
+const unavailable = (f: keyof FleetForm, v: string) => `${FIELD_LABEL[f]} «${v}» ya no está disponible en el catálogo.`;
+/** Límites del hueco C-5 (clar. 54). */
+export const JUSTIFICATION_MAX = 300;
+export const SESSION_MAX = 100;
+export const SESSION_FULL = 'Guarda estos grupos antes de capturar más.';
+/** Un solo año capturado se muestra como ese año (clar. 55). */
+export const yearsLabel = (g: { from: string; to: string }) => { const a = g.from || g.to, b = g.to || g.from; return !a ? '—' : a === b ? a : `${a}–${b}`; };
 export function validateFleet(form: FleetForm, today = new Date()): Errors {
   const e: Errors = {};
   const pick = (f: OtroField, options: string[] | undefined, required: boolean) => {
     const v = form[f];
-    if (!v) { if (required) e[f] = `Selecciona ${FIELD_LABEL[f].toLocaleLowerCase('es')}.`; return; }
+    if (!v) { if (required) e[f] = REQUIRED; return; }
     if (v === OTRO) {
       const t = form[textKey(f)].trim();
       if (!t) e[textKey(f)] = MISSING_TEXT[f];
       else if (t.length > OTRO_MAX) e[textKey(f)] = `Máximo ${OTRO_MAX} caracteres.`;
       return;
     }
-    if (!options?.includes(v)) e[f] = `Selecciona una opción de la lista para ${FIELD_LABEL[f].toLocaleLowerCase('es')}.`;
+    if (!options?.includes(v)) e[f] = unavailable(f, v);
   };
-  if (!TYPES.includes(form.type)) e.type = 'Selecciona el tipo.';
+  if (!form.type) e.type = REQUIRED; else if (!TYPES.includes(form.type)) e.type = unavailable('type', form.type);
   pick('brand', optionsFor(form, 'brand'), true);
   pick('model', optionsFor(form, 'model'), true);
   if (hasBody(form.type)) { pick('body', optionsFor(form, 'body'), false); if (form.body) pick('bodyModel', optionsFor(form, 'bodyModel'), false); }
@@ -151,7 +165,8 @@ export function validateFleet(form: FleetForm, today = new Date()): Errors {
     else if (Number(v) > year) e[k] = `El año no puede ser posterior a ${year}.`;
   }
   if (!e.from && !e.to && form.from && form.to && Number(form.from) > Number(form.to)) { e.from = 'El año inicial debe ser igual o anterior al año final.'; e.to = 'El año inicial debe ser igual o anterior al año final.'; }
-  if (!/^\d+$/.test(form.units.trim()) || Number(form.units) <= 0 || !Number.isSafeInteger(Number(form.units))) e.units = 'Captura un número entero mayor que cero.';
+  if (!form.units.trim()) e.units = REQUIRED;
+  else if (!/^\d+$/.test(form.units.trim()) || Number(form.units) <= 0 || !Number.isSafeInteger(Number(form.units))) e.units = 'Captura un número entero mayor que cero.';
   return e;
 }
 

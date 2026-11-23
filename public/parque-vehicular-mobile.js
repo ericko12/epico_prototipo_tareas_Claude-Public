@@ -57,7 +57,12 @@
   const shown = (g, f) => g[f] === OTRO ? g[f + 'Text'] : g[f];
   const norm = s => String(s).trim().toLocaleLowerCase('es');
   const valueHtml = (g, f) => esc(shown(g, f) || '—') + (g[f] === OTRO ? ' <span class="tag">No catalogado</span>' : '');
-  const years = g => g.from || g.to ? (g.from || g.to) + '–' + (g.to || g.from) : 'Años sin capturar';
+  /** Un solo año capturado se muestra como ese año (clar. 55). */
+  const years = g => { const a = g.from || g.to, b = g.to || g.from; return !a ? 'Años sin capturar' : a === b ? a : a + '–' + b; };
+  /** Textos y límites de los huecos C-2, C-4 y C-5 (clar. 51, 53 y 54). */
+  const REQUIRED = 'Este dato es obligatorio.';
+  const unavailable = (f, val) => labels[f] + ' «' + val + '» ya no está disponible en el catálogo.';
+  const JUSTIFICATION_MAX = 300, SESSION_MAX = 100;
   const role = () => $('role').value;
   const mayRegister = () => role() === 'Asesor';
   const mayEdit = () => role() === 'Asesor' || role() === 'Administrador';
@@ -66,15 +71,15 @@
     const e = {};
     const pick = (f, required) => {
       const val = v[f];
-      if (!val) { if (required) e[f] = 'Selecciona ' + labels[f].toLocaleLowerCase('es') + '.'; return; }
+      if (!val) { if (required) e[f] = REQUIRED; return; }
       if (val === OTRO) {
         const t = v[f + 'Text'].trim();
         if (!t) e[f] = missing[f]; else if (t.length > OTRO_MAX) e[f] = 'Máximo ' + OTRO_MAX + ' caracteres.';
         return;
       }
-      if (!(optionsFor(v, f) || []).includes(val)) e[f] = 'Selecciona una opción de la lista.';
+      if (!(optionsFor(v, f) || []).includes(val)) e[f] = unavailable(f, val);
     };
-    if (!catalog?.tipos.includes(v.type)) e.type = 'Selecciona el tipo.';
+    if (!v.type) e.type = REQUIRED; else if (!catalog?.tipos.includes(v.type)) e.type = unavailable('type', v.type);
     pick('brand', true); pick('model', true);
     if (hasBody(v.type)) { pick('body', false); if (v.body) pick('bodyModel', false); }
     pick('motor', false);
@@ -85,7 +90,8 @@
       else if (Number(v[k]) > year) e[k] = 'El año no puede ser posterior a ' + year + '.';
     }
     if (!e.from && !e.to && v.from && v.to && Number(v.from) > Number(v.to)) e.from = e.to = 'El año inicial debe ser igual o anterior al año final.';
-    if (!/^\d+$/.test(v.units) || Number(v.units) < 1 || !Number.isSafeInteger(Number(v.units))) e.units = 'Captura un número entero mayor que cero.';
+    if (!v.units) e.units = REQUIRED;
+    else if (!/^\d+$/.test(v.units) || Number(v.units) < 1 || !Number.isSafeInteger(Number(v.units))) e.units = 'Captura un número entero mayor que cero.';
     return e;
   }
   const key = (g, f) => g[f] === OTRO ? 'otro:' + norm(g[f + 'Text']) : g[f];
@@ -138,7 +144,7 @@
       (drafts.length ? '<div class="notice">Tienes ' + drafts.length + ' grupo(s) sin guardar.</div><button class="btn alt full" data-review>Revisar y guardar</button>' : '')
       + sessionHtml()
       + '<div class="row"><span class="tag">Grupos: ' + rows.length + '</span><span class="tag">Unidades: ' + total + '</span></div>'
-      + (mayRegister() ? '<button class="btn full" data-new>Registrar parque vehicular</button>' : '<div class="notice">Solo el asesor que tiene asignada esta Dirección registra parque vehicular.</div>')
+      + (mayRegister() ? '<button class="btn full" data-new>Registrar parque vehicular</button>' : '<div class="notice">Solo el asesor que tiene a este Cliente en su cartera registra parque vehicular.</div>')
       + (rows.length ? rows.map((row, index) => '<article class="card group"><strong>' + valueHtml(row, 'brand') + ' / ' + valueHtml(row, 'model') + '</strong>'
         + '<div class="sub">' + esc(row.id) + ' · ' + esc(row.type) + '</div><div class="sub">' + esc(years(row)) + ' · ' + esc(row.units) + ' unidades</div>'
         + '<div class="sub">Último levantamiento: ' + esc(new Date(row.lastSurvey).toLocaleDateString('es-MX')) + '</div>'
@@ -173,7 +179,7 @@
       editing ? 'Volver al grupo' : 'Volver al parque vehicular', () => editing ? renderDetail(original) : cancel(),
       (editing ? '' : sessionHtml()) + '<form class="group card" novalidate><div data-fields class="group"></div>'
       + (editing ? '<div class="field"><label for="fleet-reason">Motivo del cambio *</label><input id="fleet-reason"><small data-err="reason" class="hidden"></small></div>'
-        + '<div class="field hidden" data-justify><div class="notice">' + COINCIDENCE + '</div><label for="fleet-just">Justificación *</label><input id="fleet-just"></div>' : '')
+        + '<div class="field hidden" data-justify><div class="notice">' + COINCIDENCE + '</div><label for="fleet-just">Justificación *</label><input id="fleet-just" maxlength="' + JUSTIFICATION_MAX + '"></div>' : '')
       + '<div class="notice hidden" role="alert" data-error></div>'
       + (editing ? '<button class="btn full" type="submit">Guardar cambios</button>'
         : '<button class="btn full" type="submit">' + (draft ? 'Actualizar y volver a revisar' : 'Revisar y guardar') + '</button>'
@@ -246,6 +252,7 @@
     }
     function addToSession() {
       if (!check()) return false;
+      if (!draft && drafts.length >= SESSION_MAX) { notify('Guarda estos grupos antes de capturar más.'); return false; }
       const clean = Object.fromEntries(Object.keys(blank).map(k => [k, v[k]]));
       if (draft) drafts = drafts.map(d => d.tempId === draft.tempId ? { ...d, ...clean } : d);
       else drafts = [...drafts, { ...clean, tempId: 'S' + (++seq), justification: '' }];
@@ -298,7 +305,7 @@
     stage.querySelectorAll('[data-justify]').forEach(b => { b.onclick = () => {
       const d = drafts.find(x => x.tempId === b.dataset.justify);
       const text = prompt('Explica por qué este grupo es distinto del que ya existe:', d.justification || '');
-      if (text !== null && text.trim()) { d.justification = text.trim(); renderReview(); }
+      if (text !== null && text.trim()) { d.justification = text.trim().slice(0, JUSTIFICATION_MAX); if (text.trim().length > JUSTIFICATION_MAX) notify('La justificación admite hasta ' + JUSTIFICATION_MAX + ' caracteres; se recortó.'); renderReview(); }
     }; });
     stage.querySelector('[data-more]').onclick = () => renderForm();
     stage.querySelector('[data-save]').onclick = save;

@@ -28,15 +28,17 @@ assert.ok(f.modelsFor('Autobús- Transporte foráneo o de turismo', 'VOLVO').inc
 assert.ok(!f.modelsFor('Autobús- Transporte foráneo o de turismo', 'VOLVO').includes('FH460'), 'Un autobús no ofrece tractocamiones');
 assert.ok(f.modelsFor('Servicio pesado', 'VOLVO').includes('FH460'));
 
-// Universo por rol (clar. 9, 34, 43)
-assert.deepEqual(f.universe('asesor', '529').map(a => a.id), ['529-BASE', '529-D1']);
-assert.deepEqual(f.universe('gerente', '529').map(a => a.id), ['529-BASE', '529-D1'], 'Gerente: Direcciones de sus asesores y ninguna otra');
+// Universo por rol: la cartera es por Cliente y alcanza todas sus Direcciones (clar. 9, 34, 43, 49)
+assert.deepEqual(f.universe('asesor', '529').map(a => a.id), ['529-BASE', '529-D1', '529-MTY'], 'Cliente en la cartera: todas sus Direcciones');
+assert.equal(f.universe('gerente', '529').length, 3, 'Gerente: los Clientes de la cartera de sus asesores');
+assert.equal(f.inUniverse('asesor', '999'), false, 'Cliente fuera de la cartera');
+assert.equal(f.ADDRESSES.some(a => 'sellerId' in a), false, 'La Dirección no tiene vendedor');
 assert.equal(f.universe('kam', '529').length, 3);
 assert.equal(f.universe('soporte', '529').length, 3);
 const mty = f.ADDRESSES.find(a => a.id === '529-MTY'), base = f.ADDRESSES.find(a => a.id === '529-BASE');
 assert.equal(f.canRegister('asesor', base), true);
 assert.equal(f.canRegister('admin', base), false, 'Solo el asesor registra');
-assert.equal(f.canRegister('asesor', mty), false);
+assert.equal(f.canRegister('asesor', mty), true, 'Cliente con dos asesores: Pedro registra también en BASE MONTERREY');
 assert.equal(f.canEdit('admin', mty), true);
 assert.equal(f.canEdit('kam', base), false);
 
@@ -52,6 +54,22 @@ assert.ok(f.validateFleet({ ...bus, from: '2020', to: '2015' }, today).from, 'In
 assert.ok(f.validateFleet({ ...bus, brand: f.OTRO, brandText: '  ', model: f.OTRO, modelText: 'X' }, today).brandText, '«Otro» sin texto');
 assert.deepEqual(f.validateFleet({ ...bus, brand: f.OTRO, brandText: 'Fruehauf', model: f.OTRO, modelText: 'X' }, today), {});
 assert.ok(f.validateFleet({ ...bus, brand: 'KENWORTH' }, today).brand, 'Marca de otro tipo');
+
+// Textos y límites C-1 a C-6 (clar. 50 a 55)
+assert.equal(f.validateFleet({ ...bus, units: '' }, today).units, 'Este dato es obligatorio.');
+assert.equal(f.validateFleet({ ...bus, type: '' }, today).type, 'Este dato es obligatorio.');
+assert.equal(f.validateFleet({ ...bus, from: '218' }, today).from, 'Captura el año con cuatro dígitos.');
+assert.equal(f.validateFleet({ ...bus, to: '2027' }, today).to, 'El año no puede ser posterior a 2026.');
+assert.equal(f.validateFleet({ ...bus, model: 'T680' }, today).model, 'Modelo «T680» ya no está disponible en el catálogo.');
+assert.equal(f.yearsLabel({ from: '2019', to: '' }), '2019', 'Solo uno de los dos años');
+assert.equal(f.yearsLabel({ from: '', to: '2019' }), '2019');
+assert.equal(f.yearsLabel({ from: '2019', to: '2019' }), '2019');
+assert.equal(f.yearsLabel({ from: '2018', to: '2020' }), '2018–2020');
+assert.equal(f.yearsLabel({ from: '', to: '' }), '—');
+assert.equal(f.JUSTIFICATION_MAX, 300);
+assert.equal(f.SESSION_MAX, 100);
+const gone = f.saveDrafts([{ ...bus, model: 'T680', tempId: 'S1', justification: '' }], [], '529-D1', 'Pedro', today).results[0];
+assert.equal(gone.ok, false); assert.equal(gone.reason, 'Modelo «T680» ya no está disponible en el catálogo.');
 
 // Limpieza por rama (clar. 25, 39)
 const changed = f.applyChange(bus, 'brand', 'SCANIA');
