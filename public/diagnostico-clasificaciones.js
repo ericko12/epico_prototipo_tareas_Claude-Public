@@ -39,6 +39,14 @@ function renderImportedClassifications(clientId, relationId, role, panelId, butt
     button.setAttribute("aria-expanded", "false");
     return;
   }
+  const filter = document.createElement("select");
+  filter.setAttribute("aria-label", "Periodo del historial de niveles");
+  filter.innerHTML = '<option value="recent">Últimos doce meses</option><option value="all">Todos los periodos conservados</option>';
+  const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-11); cutoff.setDate(1);
+  const firstPeriod = cutoff.toISOString().slice(0,7);
+  const rows = [];
+  panel.append(filter);
+  filter.onchange = () => rows.forEach(({line,period})=>line.hidden=filter.value!=="all" && period<firstPeriod);
   function showHistory(title, entries, format) {
     const heading = document.createElement("b");
     heading.textContent = title;
@@ -49,6 +57,8 @@ function renderImportedClassifications(clientId, relationId, role, panelId, butt
       const version = currentPeriods.has(entry.period) ? "Versión anterior" : "Última versión del periodo";
       currentPeriods.add(entry.period);
       line.textContent = [entry.period, format(entry), version, dateText(entry), entry.author].filter(Boolean).join(" · ");
+      line.hidden = entry.period < firstPeriod;
+      rows.push({line,period:entry.period});
       panel.append(line);
     }
     if (!entries.length) {
