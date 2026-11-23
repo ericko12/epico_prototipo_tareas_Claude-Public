@@ -1,4 +1,4 @@
-/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.16.
+/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.17.
  * Diagnosis drafts and revisions live only in memory. No sensitive draft storage.
  * All role, connection and service controls below are explicitly demo scenarios.
  */
@@ -6,6 +6,7 @@
   'use strict';
   const params = new URLSearchParams(location.search);
   let profileStart = {}, commercialStart = {};
+  let historyOpen=false;
   const mergeFields = (latest, baseline, submitted) => { const result=clone(latest); for(const k of Object.keys(submitted)) if(JSON.stringify(submitted[k]??'')!==JSON.stringify(baseline[k]??'')) result[k]=clone(submitted[k]); return result; };
   const mobile = !!document.getElementById('questions');
   const el = id => document.getElementById(id);
@@ -32,6 +33,14 @@
   let profileBaseline = 0, sessionExpired = false;
   let networkDemo = true, pendingDirection = false, conflictReview = false;
   const accessed = new Set();
+  const demoDirections=[...el('direction').options].map(o=>({value:o.value,label:o.textContent}));
+  function restrictDirections(){
+    const all=role()==='Administrador'&&el('supportPermission')?.checked||['Gerente','KAM'].includes(role());
+    const allowed=all?demoDirections:demoDirections.slice(0,1);
+    const current=el('direction').value;
+    el('direction').replaceChildren(...allowed.map(o=>new Option(o.label,o.value)));
+    if(allowed.some(o=>o.value===current))el('direction').value=current;
+  }
   const records = new Map(), revisions = new Map(), audit = [], profileHistory = new Map();
   const canEdit = () => canCommercial() && role()!=='Telemarketing';
   const canStatus = () => ['Asesor','Gerente','Telemarketing','Administrador'].includes(role());
@@ -69,11 +78,16 @@
     const changes = changedFields(before, after, names);
     if (!changes.length) return;
     revisions.set(key, revision(key) + 1);
-    audit.unshift({context:context(), key, block, who:role(), when:now(), changes});
+    audit.unshift({context:context(), key, block, who:(el('realAdministrator')?.checked?'Administrador real → ':'')+role(), when:now(), changes});
   }
   function showValue(value) { return Array.isArray(value) ? value.join(', ') || 'Sin información disponible' : String(value || 'Sin información disponible'); }
   function renderAudit() {
     const host = el(mobile ? 'historyList' : 'history');
+    host.hidden=!historyOpen;
+    if(mobile&&el('changes'))el('changes').classList.toggle('hidden',!historyOpen);
+    el('diagnosisHistoryToggle').textContent=historyOpen?'Ocultar historial':'Ver historial';
+    el('diagnosisHistoryToggle').setAttribute('aria-expanded',String(historyOpen));
+    if(!historyOpen)return;
     const entries = audit.filter(x => x.context === context());
     host.innerHTML = entries.length ? entries.map(h => `<div class="history-item"><b>${escape(h.block)} · ${escape(h.who)}</b><p>${escape(h.when)}</p>${h.changes.map(c=>`<p><b>${escape(c.name)}</b><br>Anterior: ${escape(showValue(c.before))}<br>Nuevo: ${escape(showValue(c.after))}</p>`).join('')}</div>`).join('') : '<p class="sub">Sin cambios registrados en este contexto durante esta sesión.</p>';
   }
@@ -85,16 +99,20 @@
     const branches = questions.findIndex(q=>/otras sucursales/i.test(q.q));
     if (branches >= 0 && values[branches] !== 'Si') applicable = applicable.filter(i=>!/Cantidad de Sucursales/i.test(questions[i].q));
     const decisionIndex=questions.findIndex(q=>/Quién toma la decisión/i.test(q.q));
-    let missing = applicable.filter(i=>!(decisionContacts().length&&i===decisionIndex)).filter(i=>Array.isArray(values[i]) ? !values[i].length : values[i] === '' || values[i] == null).length;
+    applicable=applicable.filter(i=>i!==decisionIndex);
+    let missing = applicable.filter(i=>Array.isArray(values[i]) ? !values[i].length : values[i] === '' || values[i] == null).length;
+    const fallbackQuestion=!decisionContacts().length;
+    if(fallbackQuestion&&!String(values.PERFIL_PUESTO_DECISOR||'').trim())missing++;
     const serviceQuestion=segment()==='empresas'&&directionView;
     if(serviceQuestion&&!saved().service)missing++;
-    el('closureCompletion').textContent = `${missing ? 'Incompleto' : 'Completo'} · ${applicable.length+(serviceQuestion?1:0)} preguntas · ${missing} sin responder`;
+    el('closureCompletion').textContent = `${missing ? 'Incompleto' : 'Completo'} · ${applicable.length+(fallbackQuestion?1:0)+(serviceQuestion?1:0)} preguntas · ${missing} sin responder`;
   }
   function decorateProfile() {
     const container = fieldHost();
     container.hidden = segment() === 'empresas' && !directionView;
     profileButton().hidden = (segment() === 'empresas' && !directionView) || scenario !== 'active';
     profileButton().disabled = !canEdit();
+    if(!editing)profileButton().textContent=Object.values(profileData()).some(v=>Array.isArray(v)?v.length:String(v??'').trim())?'Modificar información':'Iniciar levantamiento';
     if(!channelAllowed()){ container.hidden=true; el('closureFields').hidden=true; el('closureNotice').textContent='Canal sin clasificación compatible: solo datos generales autorizados.'; }else el('closureFields').hidden=false;
     container.querySelectorAll('input[type="number"]').forEach(input => {
       const field = mobile ? input.closest('.field') : input.closest('[data-index]');
@@ -134,16 +152,19 @@
   }
   function decorateDecisors(container) {
     const contacts=decisionContacts();
-    if(!contacts.length)return;
     const i=catalog[segment()].findIndex(q=>/Quién toma la decisión/i.test(q.q));
-    if(i<0)return;
     const field=mobile?container.querySelectorAll('.field')[i]:container.querySelector('[data-index="'+i+'"]');
-    if(!field)return;
-    field.innerHTML='<label>¿Quién decide? · origen Contactos</label>'+contacts.map(c=>'<p>'+escape(c.name)+' · '+escape(c.position)+'</p>').join('')+'<small>Solo consulta. El puesto se actualiza en Contactos.</small>';
+    if(field)field.hidden=true;
+    let panel=el('decisionPositionPanel');
+    if(!panel){panel=document.createElement('section');panel.id='decisionPositionPanel';panel.className='field';container.after(panel);}
+    panel.hidden=container.hidden||!canView();
+    const value=profileData().PERFIL_PUESTO_DECISOR||'';
+    panel.innerHTML=contacts.length?'<label>Decisores · origen Contactos</label>'+contacts.map(c=>'<p>'+escape(c.name)+' · '+escape(c.position)+'</p>').join('')+'<small>El puesto se obtiene de los contactos decisores y se actualiza en Contactos.</small>':'<label for="decisionPosition">Puesto del decisor</label>'+(editing&&canEdit()?'<input id="decisionPosition" type="text" value="'+escape(mobile?draft.PERFIL_PUESTO_DECISOR||'':value)+'" placeholder="Por ejemplo: Encargado de compras">':'<div class="field-read">'+escape(value||'Sin información disponible')+'</div>')+'<small>Origen: Capturado · cuenta para completar el diagnóstico.</small>';
   }
   function collectProfile() {
     if (mobile) {
       document.querySelectorAll('#questions [data-i]').forEach(input=>draft[input.dataset.i]=input.value);
+      draft.PERFIL_PUESTO_DECISOR=el('decisionPosition')?.value??draft.PERFIL_PUESTO_DECISOR??'';
       return clone(draft);
     }
     const values = {};
@@ -151,6 +172,7 @@
       const i=field.dataset.index, question=catalog[segment()][i];
       values[i]=question.t==='multi' ? [...(multiSelected[i]||[])] : field.querySelector('input[type="number"],input[type="date"],select')?.value || '';
     });
+    values.PERFIL_PUESTO_DECISOR=el('decisionPosition')?.value??profileData().PERFIL_PUESTO_DECISOR??'';
     return values;
   }
   function validateProfile(data) {
@@ -172,13 +194,15 @@
   }
   const originalRender = mobile ? render : draw;
   function redraw() {
-    originalRender(); decorateProfile(); renderCommercial();
+    restrictDirections(); originalRender(); decorateProfile(); renderCommercial();
     const visible=canView();
     const accessKey=context()+':'+role()+':'+el('scopeScenario').value;
     if(visible&&role()==='Administrador'&&!accessed.has(accessKey)){accessed.add(accessKey);audit.unshift({context:context(),key:accessKey,block:'Acceso de apoyo auditado · '+el('scopeScenario').selectedOptions[0].text,who:role(),when:now(),changes:[]});renderAudit();}
     for(const child of host.children)if(child!==closure)child.hidden=!visible;
     ['closureFields','closureContext','closureCompletion','directionAddress','openDirection','directionBack','fleetRegistration'].forEach(id=>{if(!visible)el(id).hidden=true;});
     if(visible){el('closureContext').hidden=false;el('closureCompletion').hidden=false;}
+    if(el('decisionPositionPanel'))el('decisionPositionPanel').hidden=!visible||!channelAllowed()||(segment()==='empresas'&&!directionView);
+    if(mobile)refreshMobileClassification();else refreshClassification();
     el('closureFields').hidden=!visible||!channelAllowed();
     el('commercialEdit').hidden=!visible||!!commercialDraft||!canCommercial();
     if(!visible)announce('Sin clientes autorizados en tu cartera o estructura actual. La función de apoyo permite acceso global solo al Administrador autorizado.',true);
@@ -198,8 +222,9 @@
     const before=clone(profileData());
     const decisionIndex=catalog[segment()].findIndex(q=>/Quién toma la decisión/i.test(q.q));
     if(decisionContacts().length&&decisionIndex>=0){if(before[decisionIndex]===undefined)delete data[decisionIndex];else data[decisionIndex]=before[decisionIndex];}
+    if(decisionContacts().length){if(before.PERFIL_PUESTO_DECISOR===undefined)delete data.PERFIL_PUESTO_DECISOR;else data.PERFIL_PUESTO_DECISOR=before.PERFIL_PUESTO_DECISOR;}
     if(mobile) dataStore[currentKey()]=clone(data); else store[window.key()]=clone(data);
-    recordChange(key,'Perfil',before,data,Object.fromEntries(catalog[segment()].map((q,i)=>[i,q.q])));
+    recordChange(key,'Perfil',before,data,{...Object.fromEntries(catalog[segment()].map((q,i)=>[i,q.q])),PERFIL_PUESTO_DECISOR:'Puesto del decisor'});
     profileHistory.set(key,clone(data)); editing=false; el('confirmProfileConflict').hidden=true;
     redraw(); announce('Cambios guardados. '+el('closureCompletion').textContent+'. Puedes completar las respuestas después.');
   }
@@ -259,7 +284,7 @@
   }
   const host=el(mobile?'profile':'diag');
   const closure=document.createElement('section');closure.className='card closure-card';
-  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.16 · 23 nov 2026 · datos ficticios</small></div>
+  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.17 · 23 nov 2026 · datos ficticios</small></div>
     <div id="closureNotice" class="notice closure-notice" role="status" tabindex="-1">Guardado manual. Las respuestas opcionales pueden completarse después.</div>
     <p id="closureCompletion" class="pill"></p><h3 id="closureContext"></h3><p id="directionAddress" class="sub"></p>
     <div class="row"><button id="directionBack" class="${buttonClass} alt">Volver a Cuenta</button><button id="openDirection" class="${buttonClass} alt">Abrir Dirección seleccionada</button></div>
@@ -269,6 +294,7 @@
     <label>Alcance del usuario (demo)<select id="scopeScenario"><option value="assigned">En cartera / estructura actual</option><option value="outside">Fuera de cartera / estructura</option><option value="none">Sin cartera</option></select></label>
     <label><input id="supportPermission" type="checkbox" checked> Función de edición de apoyo (demo)</label>
     <label>CANAL del vendedor asignado (demo)<select id="advisorChannel"><option value="">Sin CANAL confirmado</option>${Object.keys(catalog).map(k=>'<option '+(k===(params.get('advisorSegment')||segment())?'selected':'')+'>'+escape(k)+'</option>').join('')}</select></label>
+    <label><input id="realAdministrator" type="checkbox"> Administrador real operando con el rol seleccionado (demo, sin sumar permisos)</label>
     <label>Contactos decisores (demo)<select id="decisorScenario"><option value="none">Sin contactos decisores</option><option value="multiple">Dos contactos decisores ficticios</option></select></label>
     <label>Estado del cliente <select id="clientScenario"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
     <label><input type="checkbox" id="networkDemo" checked> Conexión disponible</label>
@@ -284,6 +310,11 @@
     <button id="confirmProfileConflict" class="${buttonClass} alt" hidden>Confirmar Perfil después de revisar diferencias</button>
     <button id="recoverProfile" class="${buttonClass} alt" hidden>Recuperar respuestas anteriores para revisión</button>`;
   host.prepend(closure);
+  const historyHost=el(mobile?'historyList':'history');
+  const historyToggle=document.createElement('button');historyToggle.id='diagnosisHistoryToggle';historyToggle.className=buttonClass+' alt';historyToggle.textContent='Ver historial';historyToggle.setAttribute('aria-expanded','false');closure.append(historyToggle);historyHost.hidden=true;
+  historyToggle.onclick=()=>{historyOpen=!historyOpen;renderAudit();};
+  el('realAdministrator').onchange=()=>{if(confirmLeave())redraw();};
+
   if(mobile){
     const demo=closure.querySelector('.closure-demo');
     const roleLabel=document.createElement('label');roleLabel.textContent='Rol de prueba ';roleLabel.append(el('role'));demo.append(roleLabel);
@@ -334,7 +365,7 @@
     const key=profileContext(),before=clone(profileData()),after=clone(before);const index=catalog[segment()].findIndex(q=>q.t==='single');
     if(index>=0)after[index]=catalog[segment()][index].options.find(x=>x!==before[index])||'';
     if(mobile)dataStore[currentKey()]=after;else store[window.key()]=after;
-    recordChange(key,'Perfil · otro usuario (demo)',before,after,Object.fromEntries(catalog[segment()].map((q,i)=>[i,q.q])));renderAudit();announce('Otro usuario guardó una revisión de Perfil en este contexto (demo). Información adicional no entra en conflicto.');
+    recordChange(key,'Perfil · otro usuario (demo)',before,after,{...Object.fromEntries(catalog[segment()].map((q,i)=>[i,q.q])),PERFIL_PUESTO_DECISOR:'Puesto del decisor'});renderAudit();announce('Otro usuario guardó una revisión de Perfil en este contexto (demo). Información adicional no entra en conflicto.');
   };
   el('commercialConflict').onclick=()=>{const before=clone(saved()),after={...before,plan:'Propuesta actualizada por Supervisor (demo)'};records.set(context(),after);recordChange(context()+':Información adicional','Información adicional · otro usuario (demo)',before,after);renderAudit();announce('Otro usuario guardó Información adicional (demo). El Perfil sigue siendo independiente.');};
   el('confirmProfileConflict').onclick=saveProfile;

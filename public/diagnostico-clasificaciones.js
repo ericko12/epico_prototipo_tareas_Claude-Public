@@ -24,12 +24,12 @@ function renderImportedClassifications(clientId, relationId, role, panelId, butt
   function show(id, value, entry) {
     document.getElementById(id).textContent = value ?? missing;
     document.getElementById(id + "Date").textContent = entry
-      ? ["Excel", entry.period, dateText(entry)].filter(Boolean).join(" · ") : "";
+      ? ["Origen: Excel", entry.period, dateText(entry)].filter(Boolean).join(" · ") : "";
   }
   show("strategicLevel", account?.strategic, account);
   show("commercialLevel", commercial?.level, commercial);
 
-  const allowed = role === "Asesor" || role === "Gerente";
+  const allowed = ["Asesor","Gerente","KAM","Telemarketing"].includes(role) || (role === "Administrador" && !!document.getElementById("supportPermission")?.checked);
   const panel = document.getElementById(panelId);
   const button = document.getElementById(buttonId);
   button.hidden = !allowed;
