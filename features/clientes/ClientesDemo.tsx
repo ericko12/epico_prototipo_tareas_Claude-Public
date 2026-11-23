@@ -73,7 +73,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </Stack>
 <Box sx={{mt:2,pt:2,borderTop:"1px solid #e2e7ee",display:{xs:"none",md:"flex"},justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:2}}>
 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-<Button variant="outlined" onClick={()=>{setDiagnosisRequest(true);setTab(1)}}>Diagnóstico de cliente · v0.17</Button>
+<Button variant="outlined" onClick={()=>{setDiagnosisRequest(true);setTab(1)}}>Diagnóstico de cliente · v0.18</Button>
 <Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none",whiteSpace:"nowrap"}}>Carga Masiva</Button>
 <Button variant="contained" size="small" sx={{textTransform:"none",whiteSpace:"nowrap"}}>Búsqueda de producto</Button>
 </Stack>

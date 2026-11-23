@@ -1,4 +1,4 @@
-/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.17.
+/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.18.
  * Diagnosis drafts and revisions live only in memory. No sensitive draft storage.
  * All role, connection and service controls below are explicitly demo scenarios.
  */
@@ -34,13 +34,13 @@
   let networkDemo = true, pendingDirection = false, conflictReview = false;
   const accessed = new Set();
   const demoDirections=[...el('direction').options].map(o=>({value:o.value,label:o.textContent}));
-  function restrictDirections(){
-    const all=role()==='Administrador'&&el('supportPermission')?.checked||['Gerente','KAM'].includes(role());
-    const allowed=all?demoDirections:demoDirections.slice(0,1);
+  function showClientDirections(){
+    // Current Epico scope is client-seller. Direction-seller assignments are future scope.
     const current=el('direction').value;
-    el('direction').replaceChildren(...allowed.map(o=>new Option(o.label,o.value)));
-    if(allowed.some(o=>o.value===current))el('direction').value=current;
+    el('direction').replaceChildren(...demoDirections.map(o=>new Option(o.label,o.value)));
+    if(demoDirections.some(o=>o.value===current))el('direction').value=current;
   }
+
   const records = new Map(), revisions = new Map(), audit = [], profileHistory = new Map();
   const canEdit = () => canCommercial() && role()!=='Telemarketing';
   const canStatus = () => ['Asesor','Gerente','Telemarketing','Administrador'].includes(role());
@@ -92,7 +92,7 @@
     host.innerHTML = entries.length ? entries.map(h => `<div class="history-item"><b>${escape(h.block)} · ${escape(h.who)}</b><p>${escape(h.when)}</p>${h.changes.map(c=>`<p><b>${escape(c.name)}</b><br>Anterior: ${escape(showValue(c.before))}<br>Nuevo: ${escape(showValue(c.after))}</p>`).join('')}</div>`).join('') : '<p class="sub">Sin cambios registrados en este contexto durante esta sesión.</p>';
   }
   function completion() {
-    if(segment()==='empresas'&&!directionView){el('closureCompletion').textContent='Cuestionario por Dirección · abre la Dirección autorizada para consultar su avance';return;}
+    if(segment()==='empresas'&&!directionView){el('closureCompletion').textContent='Cuestionario por Dirección · abre la Dirección del cliente autorizado para consultar su avance';return;}
     const questions = catalog[segment()];
     const values = profileData();
     let applicable = questions.map((q,i)=>i);
@@ -194,7 +194,7 @@
   }
   const originalRender = mobile ? render : draw;
   function redraw() {
-    restrictDirections(); originalRender(); decorateProfile(); renderCommercial();
+    showClientDirections(); originalRender(); decorateProfile(); renderCommercial();
     const visible=canView();
     const accessKey=context()+':'+role()+':'+el('scopeScenario').value;
     if(visible&&role()==='Administrador'&&!accessed.has(accessKey)){accessed.add(accessKey);audit.unshift({context:context(),key:accessKey,block:'Acceso de apoyo auditado · '+el('scopeScenario').selectedOptions[0].text,who:role(),when:now(),changes:[]});renderAudit();}
@@ -286,7 +286,7 @@
   }
   const host=el(mobile?'profile':'diag');
   const closure=document.createElement('section');closure.className='card closure-card';
-  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.17 · 23 nov 2026 · datos ficticios</small></div>
+  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.18 · 23 nov 2026 · datos ficticios</small></div>
     <div id="closureNotice" class="notice closure-notice" role="status" tabindex="-1">Guardado manual. Las respuestas opcionales pueden completarse después.</div>
     <p id="closureCompletion" class="pill"></p><h3 id="closureContext"></h3><p id="directionAddress" class="sub"></p>
     <div class="row"><button id="directionBack" class="${buttonClass} alt">Volver a Cuenta</button><button id="openDirection" class="${buttonClass} alt">Abrir Dirección seleccionada</button></div>
