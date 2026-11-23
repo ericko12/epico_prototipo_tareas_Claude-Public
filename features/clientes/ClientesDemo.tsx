@@ -1,5 +1,5 @@
 "use client";
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import {useRouter} from "next/navigation";
 import CommercialLevelUpload,{commercialRelations} from "./CommercialLevelUpload";
 import DiagnosticoDemo from "./DiagnosticoDemo";
@@ -40,6 +40,8 @@ const openVisit=()=>{
  const time=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
  agenda.openForm({client:detail.name,address:detail.address,date:today(),time,creationMode:"unplanned",startAfterCreate:true});
 };
+const [diagnosisRequest,setDiagnosisRequest]=useState(false);
+useEffect(()=>{const params=new URLSearchParams(window.location.search);const selected=clients.find(c=>c.id===params.get("clientId"));if(selected){setDetail(selected);if(params.get("view")==="diagnostico"){setTab(1);setDiagnosisRequest(true);}}},[]);
 const [detail,setDetail]=useState<Client|null>(null),[tab,setTab]=useState(0),[taskOpen,setTaskOpen]=useState(false),[taskSubject,setTaskSubject]=useState(""),[taskDue,setTaskDue]=useState(""),[notice,setNotice]=useState("");
 useSetBreadcrumb(detail?["Clientes","Listado de clientes","Detalle"]:["Clientes","Listado de clientes"]);
 const [canUpload,setCanUpload]=useState(true);
@@ -50,7 +52,7 @@ const visits=client?agenda.profiles.luis.events.filter(e=>e.title.toLowerCase()=
 const currentVisit=client?agenda.profiles.luis.events.find(e=>e.title.toLowerCase()===client.name.toLowerCase()&&e.status==="Check-in activo"):undefined;
 return <Box sx={{p:{xs:2,md:3},pb:11}}>
 {!client&&<CommercialLevelUpload relations={relations} canUpload={canUpload&&agenda.role==="support"} setCanUpload={setCanUpload}/>}
-<Box sx={{display:client?"none":"block"}}><ClientList clients={clients} onOpen={selected=>{setDetail(selected);setTab(0);agenda.setDetail({event:null})}}/></Box>
+<Box sx={{display:client?"none":"block"}}><ClientList clients={clients} onOpen={selected=>{setDetail(selected);setTab(0);setDiagnosisRequest(false);agenda.setDetail({event:null})}}/></Box>
 {client&&<>
 <Button startIcon={<ArrowBack/>} onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{mb:2}}>Listado de clientes</Button>
 <Box sx={{mb:3}}><Button variant="outlined" onClick={()=>{setDetail(null);agenda.setDetail({event:null});setTaskOpen(false)}} sx={{width:220,minHeight:64,fontWeight:500,boxShadow:"0 2px 5px rgba(17,48,95,.10)"}}>NUEVA CAJA　＋</Button></Box>
@@ -71,6 +73,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </Stack>
 <Box sx={{mt:2,pt:2,borderTop:"1px solid #e2e7ee",display:{xs:"none",md:"flex"},justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:2}}>
 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+<Button variant="outlined" onClick={()=>{setDiagnosisRequest(true);setTab(1)}}>Diagnóstico de cliente · v0.17</Button>
 <Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none",whiteSpace:"nowrap"}}>Carga Masiva</Button>
 <Button variant="contained" size="small" sx={{textTransform:"none",whiteSpace:"nowrap"}}>Búsqueda de producto</Button>
 </Stack>
@@ -94,7 +97,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 <Typography sx={{mt:.7,fontSize:16}} noWrap title={String(v)}>{v}</Typography></Paper>)}
 </Box>
 {client.id==="529"?<ParqueVehicularAccess key={client.id} clientId={client.id} onCreateTask={openTask}/>:(<Paper variant="outlined" sx={{p:2}}><Typography variant="h6" fontWeight={700}>Direcciones del cliente</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Relación de dirección separada del cliente, conforme a Discovery.</Typography><Stack direction={{xs:"column",sm:"row"}} alignItems={{sm:"center"}} justifyContent="space-between" gap={1}><Typography><LocationOn fontSize="small" sx={{verticalAlign:"middle"}}/> {client.address}</Typography><Button onClick={openTask}>Crear tarea desde dirección (simulación)</Button></Stack></Paper>)}
-</>:<DiagnosticoDemo client={client}/>}
+</>:<DiagnosticoDemo key={client.id} client={client} initialDiagnosis={diagnosisRequest}/>}
 </>}
 <TaskComposer open={taskOpen} onClose={()=>setTaskOpen(false)} creator={client?tasksContext.data.owners[client.id]||"Luis Galván":"Luis Galván"} link={client?{clientId:client.id,client:client.name,address:client.address}:undefined} onCreated={()=>setNotice("Tarea guardada. Consúltala en Mis Tareas.")}/>
 {client?.id==="529"&&<ContactosClienteDialog open={contactsOpen} customerId={client.id} customerName={client.name} addresses={ADDRESSES.filter(a=>a.customerId===client.id)} onClose={()=>setContactsOpen(false)}/>}
