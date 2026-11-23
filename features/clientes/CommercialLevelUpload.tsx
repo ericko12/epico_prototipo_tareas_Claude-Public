@@ -24,7 +24,7 @@ function readLevels(): Levels {
   };
 }
 
-type Relation = {clientId:string; relationId:string; seller:string};
+type Relation = {clientId:string; relationId:string; seller:string; clientActive?:boolean; relationActive?:boolean};
 type Row = {number:number; clientId:string; relationId:string; level:string; strategic:string; error:string; field:string; original:string[]};
 
 export function commercialRelations(client:{id:string;seller:string}) {
@@ -45,6 +45,17 @@ export default function CommercialLevelUpload({relations,canUpload,setCanUpload}
   const [result,setResult]=useState("");
   const [baseline,setBaseline]=useState<Levels|null>(null);
   const [changed,setChanged]=useState<string[]>([]);
+  const [activityRelation,setActivityRelation]=useState("");
+  const [inactiveClient,setInactiveClient]=useState(false);
+  const [inactiveRelation,setInactiveRelation]=useState(false);
+  const selectedActivity=relations.find(r=>r.relationId===activityRelation)??relations[0];
+  function activityError(clientId:string,relationId:string) {
+    const relation=relations.find(r=>r.clientId===clientId&&r.relationId===relationId);
+    if(!relation)return null;
+    if(relation.clientActive===false||(inactiveClient&&selectedActivity?.clientId===clientId))return {field:"ClienteID",error:"Cliente inactivo"};
+    if(relation.relationActive===false||(inactiveRelation&&selectedActivity?.relationId===relationId))return {field:"ClienteVendedorID",error:"Relación cliente–vendedor inactiva"};
+    return null;
+  }
   useEffect(()=>setSlot(document.getElementById("clients-toolbar-action")),[]);
   const valid=rows.filter(row=>!row.error);
   const rejected=rows.length-valid.length;
@@ -78,8 +89,9 @@ export default function CommercialLevelUpload({relations,canUpload,setCanUpload}
       });
       setRows(records.map(row=>{
         let error="",field="";
+        const inactive=activityError(row.clientId,row.relationId);
         const missing=[row.clientId,row.relationId,row.strategic,row.level].findIndex(value=>!value);
-        if ((strategicByClient.get(row.clientId)?.size??0)>1) {
+        if(inactive){field=inactive.field;error=inactive.error;} else if ((strategicByClient.get(row.clientId)?.size??0)>1) {
           field="Nivel estratégico";
           error="Nivel estratégico contradictorio para el mismo cliente";
         } else if (missing>=0) {
@@ -113,6 +125,12 @@ export default function CommercialLevelUpload({relations,canUpload,setCanUpload}
   function apply() {
     if (!canUpload||!validPeriod(period)||!baseline) return;
     try {
+      const inactiveRows=valid.filter(row=>activityError(row.clientId,row.relationId));
+      if(inactiveRows.length){
+        setRows(previous=>previous.map(row=>({...row,...activityError(row.clientId,row.relationId)})));
+        setError("Cambió la actividad del cliente o relación. Revisa las filas rechazadas antes de aplicar las válidas.");
+        return;
+      }
       const saved=readLevels();
       const conflicts=valid.flatMap(row=>{
         const account=saved.accounts[row.clientId];
@@ -164,7 +182,15 @@ export default function CommercialLevelUpload({relations,canUpload,setCanUpload}
       <DialogContent>
         <Stack spacing={2}>
           <Typography variant="body2">Selecciona un Excel con {headersExpected.join(", ")}. Usa únicamente datos de demostración.</Typography>
-          <TextField type="month" label="Periodo" error={!validPeriod(period)} helperText={!validPeriod(period)?"Selecciona el mes actual o uno anterior; no se aceptan meses futuros.":"Se permiten correcciones de cualquier mes anterior."} value={period} onChange={event=>setPeriod(event.target.value)} slotProps={{inputLabel:{shrink:true}}} disabled={busy||!!result}/>
+          <TextField type="month" label="Periodo" error={!validPeriod(period)} helperText={!validPeriod(period)?"Selecciona el mes actual o uno anterior.":"Se permiten correcciones de cualquier mes anterior."} value={period} onChange={event=>setPeriod(event.target.value)} slotProps={{inputLabel:{shrink:true}}} disabled={busy||!!result}/>
+          <Stack spacing={1} sx={{border:"1px dashed #bccbdd",p:1.5}}>
+            <Typography variant="body2">Escenario de actividad · datos ficticios, sin conexión al maestro. Los cambios exigen validar el archivo nuevamente.</Typography>
+            <TextField select label="Relación para probar inactividad" value={selectedActivity?.relationId??""} onChange={e=>{setActivityRelation(e.target.value);setRows([]);setBaseline(null);setResult("");}} slotProps={{select:{native:true}}}>
+              {relations.map(r=><option key={r.relationId} value={r.relationId}>{r.clientId} · {r.relationId}</option>)}
+            </TextField>
+            <FormControlLabel label="Cliente inactivo (demo)" control={<Switch checked={inactiveClient} onChange={e=>{setInactiveClient(e.target.checked);setRows([]);setBaseline(null);setResult("");}}/>}/>
+            <FormControlLabel label="Relación cliente–vendedor inactiva (demo)" control={<Switch checked={inactiveRelation} onChange={e=>{setInactiveRelation(e.target.checked);setRows([]);setBaseline(null);setResult("");}}/>}/>
+          </Stack>
           <Stack direction="row" gap={2} flexWrap="wrap" alignItems="center">
             <Button component="label" variant="outlined" disabled={busy}>Seleccionar Excel
               <input hidden type="file" accept=".xlsx" onChange={event=>{const file=event.target.files?.[0];if(file) void validate(file);event.target.value=""}}/>
