@@ -14,7 +14,7 @@ const f = mod.exports;
 const today = new Date('2026-11-12T12:00:00Z');
 const F = (x) => ({ ...f.EMPTY_FORM, ...x });
 
-// Catálogo de la matriz (clar. 23, 26, 27)
+// Catálogo de las listas de Salesforce, 24-nov-2026 (clar. 23, 26, 27)
 assert.equal(f.TYPES.length, 27, '27 tipos de Salesforce');
 assert.ok(f.TYPES.includes('MC V - Combustión interna, llanta neumática'));
 assert.equal(f.MOTORS.length, 110, '111 motores de la matriz menos OTRO');
@@ -23,10 +23,17 @@ assert.equal(f.brandsFor('REMOLQUE - JAULA').length, 0, 'Tipo sin catálogo veri
 assert.equal(f.bodiesFor('Servicio pesado').length, 0);
 assert.equal(f.bodiesFor('Autobús- Transporte foráneo o de turismo').length, 14);
 assert.ok(f.bodyModelsFor('Autobús- Transporte foráneo o de turismo', 'MARCOPOLO').includes('PARADISO G8 1200'));
-// Modelo por tipo y marca (clar. 24)
+// Modelo: en Salesforce depende solo de la marca; la separación por tipo (clar. 24) espera la clasificación de Empresas
 assert.ok(f.modelsFor('Autobús- Transporte foráneo o de turismo', 'VOLVO').includes('B11R'));
-assert.ok(!f.modelsFor('Autobús- Transporte foráneo o de turismo', 'VOLVO').includes('FH460'), 'Un autobús no ofrece tractocamiones');
-assert.ok(f.modelsFor('Servicio pesado', 'VOLVO').includes('FH460'));
+assert.deepEqual(f.modelsFor('Autobús- Transporte foráneo o de turismo', 'VOLVO'), f.modelsFor('Servicio pesado', 'VOLVO'), 'Misma lista de la marca en cualquier tipo');
+assert.equal(f.modelsFor('Servicio pesado', 'VOLVO').length, 34);
+assert.ok(f.modelsFor('Autobús BTR/Articulado transporte público', 'DINA').length > 0, 'DINA ya trae modelos');
+// Servicio ligero y mediano ya traen marcas; solo 7 remolques quedan sin catálogo
+assert.equal(f.brandsFor('Servicio ligero – Utilitario operativo').length, 19);
+assert.equal(f.brandsFor('Servicio mediano').length, 6);
+assert.equal(f.TYPES_WITHOUT_CATALOG.length, 7);
+// Modelos de carrocería de las 14 carrocerías
+assert.ok(f.bodyModelsFor('Autobús- Transporte foráneo o de turismo', 'AYCO').length > 0);
 
 // Universo por rol: la cartera es por Cliente y alcanza todas sus Direcciones (clar. 9, 34, 43, 49)
 assert.deepEqual(f.universe('asesor', '529').map(a => a.id), ['529-BASE', '529-D1', '529-MTY'], 'Cliente en la cartera: todas sus Direcciones');

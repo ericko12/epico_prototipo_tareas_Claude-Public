@@ -199,7 +199,8 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
       <Alert severity="info" sx={{ mb: 2 }}>Prototipo navegable con datos de ejemplo. Los cambios quedan solo en este navegador. Reglas tomadas de la spec SDD aprobada por el BA (SPEC-F2-005, cambio «alta y consulta») el 12-nov-2026.</Alert>
       <Typography fontWeight={700}>Qué muestra esta versión</Typography>
       <Box component="ul" sx={{ pl: 3, mt: .5, '& li': { mb: .75 } }}>
-        <li>Catálogo de Salesforce (matriz del 10-nov-2026): 27 tipos, marcas por tipo, 110 motores. Modelos solo de VOLVO y MARCOPOLO; para el resto se usa «Otro». La separación de modelos VOLVO entre autobús y servicio pesado es una muestra de la regla tipo + marca.</li>
+        <li>Catálogo tomado de las listas de Salesforce el 24-nov-2026: 27 tipos, marcas por tipo, 771 modelos de 85 marcas, modelos de carrocería de las 14 carrocerías y 110 motores. Siete remolques no tienen marcas en Salesforce: solo admiten «Otro».</li>
+        <li>Como en Salesforce, el modelo depende solo de la marca: VOLVO ofrece sus 34 modelos (autobuses y tractocamiones) en cualquier tipo. La spec pide filtrar por tipo y marca (clar. 24); se aplicará cuando Empresas clasifique los modelos por tipo.</li>
         <li>Dos ramas: Tipo → Marca → Modelo, y en autobuses Tipo → Carrocería → Modelo de carrocería. El motor no se filtra. Cambiar la marca no borra la carrocería.</li>
         <li>«Otro (no está en la lista)» con texto obligatorio (máx. 60) en marca, modelo, carrocería, modelo de carrocería y motor. Se marca «No catalogado».</li>
         <li>Obligatorios: tipo, marca, modelo y unidades («Este dato es obligatorio.»). Años de cuatro dígitos, no futuros; con un solo año el grupo se muestra con ese año (2019, no 2019–2019).</li>
@@ -211,7 +212,7 @@ export default function ParqueVehicularPage({ customerId, addressId, role, onBac
       <Typography fontWeight={700} sx={{ mt: 1 }}>Segunda entrega (no está en esta versión)</Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>Mover de Dirección, desactivar, reactivar, eliminar, vigencia de 12 meses («Desactualizado»), historial y migración desde Salesforce.</Typography>
       <Typography fontWeight={700}>Abierto para comentar</Typography>
-      <Typography variant="body2">Búsqueda en listas largas (motores) y orden de los 27 tipos; catálogo real de Empresas y Merca.</Typography>
+      <Typography variant="body2">Clasificación de los modelos por tipo (Empresas) y qué hacer con Año, Tamaño de caja y Tipo de Eje, que Salesforce captura y la spec no tiene.</Typography>
     </DialogContent><DialogActions><Button onClick={() => { reset(); setDrafts([]); setScreen('list'); setNotes(false); setNotice('Se restauraron los datos de ejemplo.'); }}>Restaurar ejemplos</Button><Button onClick={() => setNotes(false)} variant="contained">Entendido</Button></DialogActions></Dialog>
     <Snackbar open={!!notice} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} action={<Button color="inherit" size="small" onClick={() => setNotice('')}>Cerrar</Button>} />
   </Box>;
