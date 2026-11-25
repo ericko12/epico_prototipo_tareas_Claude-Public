@@ -21,7 +21,7 @@ const clients:Client[]=[
 {id:"315",name:"TALLER SAN JOSÉ",rfc:"TSJ100201XXX",phone:"3331234567",email:"taller@ejemplo.com",branch:"Guadalajara",seller:"YURIDIA TORRES",region:"Occidente",division:"Taller",segment:"Menudeo",address:"Col. Centro, Guadalajara",bankReference:"315001",sellerId:"53",registeredAt:"2021-02-01",subClassification:"Taller general",scenario:"Taller"},
 {id:"CLI-1001",name:"Refaccionaria El Volante",rfc:"REV010101XXX",phone:"3330000000",email:"demo@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Refaccionaria",segment:"Menudeo",address:"Av. Demo Río Nilo 2250 · Tonalá, Jal. · DUMMY",bankReference:"1001001",sellerId:"42",registeredAt:"2022-01-10",subClassification:"Menudeo",scenario:"Visitas y tareas"},
 {id:"418",name:"MOTO REFACCIONES DEL CENTRO",rfc:"MRC200101XXX",phone:"3330000418",email:"moto@ejemplo.com",branch:"Guadalajara",seller:"LUIS GALVÁN",region:"Occidente",division:"Moto partes",segment:"Menudeo",address:"Av. Demo Motociclistas 418 · Guadalajara, Jal. · DUMMY",bankReference:"418001",sellerId:"42",registeredAt:"2023-03-15",subClassification:"Moto partes",scenario:"Moto partes"},
-{id:"529",name:"TRANSPORTES DEMO OCCIDENTE",rfc:"TDO200101XXX",phone:"3330000529",email:"empresa@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Empresas",segment:"Flotilla",address:"Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY",bankReference:"529001",sellerId:"42",registeredAt:"2024-06-20",subClassification:"Flotilla",scenario:"Empresa · diagnóstico por Dirección"}];
+{id:"529",name:"TRANSPORTES DEMO OCCIDENTE",rfc:"TDO200101XXX",phone:"3330000529",email:"empresa@ejemplo.com",branch:"Tonalá",seller:"LUIS GALVÁN",region:"Occidente",division:"Empresas",segment:"Flotilla",address:"Base operativa · Av. Demo Logística 529 · Tonalá, Jal. · DUMMY",bankReference:"529001",sellerId:"42",registeredAt:"2024-06-20",subClassification:"Flotilla",scenario:"Empresa · canal Moto Partes",diagnosisChannel:"Moto part"}];
 const relations=clients.flatMap(commercialRelations);
 export default function ClientesDemo(){
 const router=useRouter();
@@ -73,7 +73,7 @@ return <Box sx={{p:{xs:2,md:3},pb:11}}>
 </Stack>
 <Box sx={{mt:2,pt:2,borderTop:"1px solid #e2e7ee",display:{xs:"none",md:"flex"},justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:2}}>
 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-<Button variant="outlined" onClick={()=>{setDiagnosisRequest(true);setTab(1)}}>Diagnóstico de cliente · v0.18</Button>
+<Button variant="outlined" onClick={()=>{setDiagnosisRequest(true);setTab(1)}}>Diagnóstico de Cliente</Button>
 <Button variant="contained" size="small" sx={{bgcolor:"#323c4e",textTransform:"none",whiteSpace:"nowrap"}}>Carga Masiva</Button>
 <Button variant="contained" size="small" sx={{textTransform:"none",whiteSpace:"nowrap"}}>Búsqueda de producto</Button>
 </Stack>

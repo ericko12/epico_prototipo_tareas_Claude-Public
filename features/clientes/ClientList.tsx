@@ -7,7 +7,7 @@ import {Download,PersonSearch,Search} from "@mui/icons-material";
 export type ClientListItem={
   id:string;name:string;rfc:string;phone:string;email:string;branch:string;seller:string;
   region:string;division:string;segment:string;address:string;
-  bankReference:string;sellerId:string;registeredAt:string;subClassification:string;scenario:string;
+  bankReference:string;sellerId:string;registeredAt:string;subClassification:string;scenario:string;diagnosisChannel?: "Moto part";
 };
 const columns=["ID","Nombre empresa","Teléfono","Alta","Ref Bancaria","RFC","Clasificación","Sub-Clasificación","Sucursal","ID Vendedor","Vendedor"];
 const normalize=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es").trim();

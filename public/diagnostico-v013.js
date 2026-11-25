@@ -1,4 +1,4 @@
-/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.18.
+/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.22.
  * Diagnosis drafts and revisions live only in memory. No sensitive draft storage.
  * All role, connection and service controls below are explicitly demo scenarios.
  */
@@ -6,7 +6,7 @@
   'use strict';
   const params = new URLSearchParams(location.search);
   let profileStart = {}, commercialStart = {};
-  let historyOpen=false;
+  let historyOpen=false, suggestions=[];
   const mergeFields = (latest, baseline, submitted) => { const result=clone(latest); for(const k of Object.keys(submitted)) if(JSON.stringify(submitted[k]??'')!==JSON.stringify(baseline[k]??'')) result[k]=clone(submitted[k]); return result; };
   const mobile = !!document.getElementById('questions');
   const el = id => document.getElementById(id);
@@ -15,8 +15,13 @@
   const segment = () => mobile ? el('segment').value : clientSegment;
   const client = () => mobile ? activeCustomer.id : integrationParams.get('clientId') || '207';
   const role = () => el('role').value;
-  const advisorChannel = () => el('advisorChannel')?.value || params.get('advisorSegment') || segment();
-  const masterSegment = () => el('masterSegment')?.value || (params.get('segment')==='Moto part'?'Refa':params.get('segment')) || segment();
+  const advisorChannel = () => el('advisorChannel')?.value ?? params.get('advisorSegment') ?? segment();
+  const masterSegment = () => el('masterSegment')?.value ?? (params.get('segment')==='Moto part'?'Refa':params.get('segment')) ?? segment();
+  const isCompany = () => masterSegment() === 'empresas';
+  const accountProfile = () => advisorChannel() === 'Moto part' ? 'Moto part' : masterSegment();
+  const setSegment = value => { if(mobile) el('segment').value=value; else clientSegment=value; };
+  const segmentLabels = {Refa:'Refaccionarias','Moto part':'Moto Partes',Talleres:'Talleres',empresas:'Empresas'};
+  const profileAvailable = () => segment() !== 'empresas' || directionView;
   const channelAllowed = () => role()!=='Asesor' || (!!advisorChannel() && (advisorChannel()==='Moto part' || (!!masterSegment() && advisorChannel()===masterSegment())));
   const hasScope = () => role()==='Administrador'
     ? !!el('supportPermission')?.checked
@@ -24,7 +29,7 @@
   const canView = () => hasScope();
   const canCommercial = () => canView() && !['Consulta','KAM'].includes(role()) && channelAllowed() && scenario==='active';
   const profileData = () => mobile ? current() : values();
-  const context = () => `${client()}:${segment()}:${segment() === 'empresas' && directionView ? el('direction').value : 'Cuenta'}`;
+  const context = () => client() + (directionView ? ':Dirección:' + el('direction').value : ':Cuenta');
   const profileContext = () => `${client()}:${segment()}:${segment() === 'empresas' ? el('direction').value : 'Perfil'}`;
   const fieldHost = () => el(mobile ? 'questions' : 'fields');
   const profileButton = () => el(mobile ? 'editBtn' : 'edit');
@@ -41,7 +46,7 @@
     if(demoDirections.some(o=>o.value===current))el('direction').value=current;
   }
 
-  const records = new Map(), revisions = new Map(), audit = [], profileHistory = new Map();
+  const records = new Map(), revisions = new Map(), audit = [];
   const canEdit = () => canCommercial() && role()!=='Telemarketing';
   const canStatus = () => ['Asesor','Gerente','Telemarketing','Administrador'].includes(role());
   const canStrategy = () => role() === 'Administrador';
@@ -50,7 +55,7 @@
   const revision = key => revisions.get(key) || 0;
   const dirty = () => editing || commercialDraft !== null;
   const approvedSituations = ['Competitividad de precios']; // existing approved demo option; no cross-segment additions
-  const situations = () => ['Refa','empresas'].includes(segment()) ? approvedSituations : [];
+  const situations = () => isCompany() || segment() === 'Refa' ? approvedSituations : [];
   const services = ['Servicio ligero','Servicio pesado HD','Servicio mixto'];
   const now = () => new Date().toLocaleString('es-MX');
   function announce(message, error = false) {
@@ -92,7 +97,7 @@
     host.innerHTML = entries.length ? entries.map(h => `<div class="history-item"><b>${escape(h.block)} · ${escape(h.who)}</b><p>${escape(h.when)}</p>${h.changes.map(c=>`<p><b>${escape(c.name)}</b><br>Anterior: ${escape(showValue(c.before))}<br>Nuevo: ${escape(showValue(c.after))}</p>`).join('')}</div>`).join('') : '<p class="sub">Sin cambios registrados en este contexto durante esta sesión.</p>';
   }
   function completion() {
-    if(segment()==='empresas'&&!directionView){el('closureCompletion').textContent='Cuestionario por Dirección · abre la Dirección del cliente autorizado para consultar su avance';return;}
+    if(!profileAvailable()){el('closureCompletion').textContent='Cuestionario por Dirección · abre la Dirección del cliente autorizado para consultar su avance';return;}
     const questions = catalog[segment()];
     const values = profileData();
     let applicable = questions.map((q,i)=>i);
@@ -109,8 +114,8 @@
   }
   function decorateProfile() {
     const container = fieldHost();
-    container.hidden = segment() === 'empresas' && !directionView;
-    profileButton().hidden = (segment() === 'empresas' && !directionView) || scenario !== 'active';
+    container.hidden = !profileAvailable();
+    profileButton().hidden = (!profileAvailable()) || scenario !== 'active';
     profileButton().disabled = !canEdit();
     if(!editing)profileButton().textContent=Object.values(profileData()).some(v=>Array.isArray(v)?v.length:String(v??'').trim())?'Modificar información':'Iniciar levantamiento';
     if(!channelAllowed()){ container.hidden=true; el('closureFields').hidden=true; el('closureNotice').textContent='Canal sin clasificación compatible: solo datos generales autorizados.'; }else el('closureFields').hidden=false;
@@ -148,7 +153,7 @@
     completion(); renderAudit();
   }
   function decisionContacts() {
-    return el('decisorScenario')?.value==='multiple' ? [{name:'Contacto ficticio A',position:'Propietario'},{name:'Contacto ficticio B',position:'Responsable de compras'}] : [];
+    return el('decisionService')?.value==='available' && el('decisorScenario')?.value==='multiple' ? [{name:'Contacto ficticio A',position:'Propietario'},{name:'Contacto ficticio B',position:'Responsable de compras'}] : [];
   }
   function decorateDecisors(container) {
     const contacts=decisionContacts();
@@ -195,14 +200,28 @@
   const originalRender = mobile ? render : draw;
   function redraw() {
     showClientDirections(); originalRender(); decorateProfile(); renderCommercial();
+    el(mobile?'directionBox':'directionArea').classList.toggle('hidden',!isCompany());
+    el('businessProfileHeading').hidden=!profileAvailable();
+    el(mobile?'counter':'count').hidden=!profileAvailable();
+    if(mobile){
+      el('diagnosisClientName').textContent='ID '+client()+' · '+activeCustomer.name+' · '+(segmentLabels[masterSegment()]||'Sin segmento confirmado');
+      el('summaryResponsible').textContent=(params.get('clientId')===client()?params.get('responsible'):'')||activeCustomer.seller||'Sin información disponible';
+      el('summaryActivity').textContent=(params.get('clientId')===client()?params.get('latestActivity'):'')||'Sin información disponible';
+    }else{
+      el('diagnosisAccount').textContent='Cuenta · '+(params.get('name')||client())+' · '+(segmentLabels[masterSegment()]||'Sin segmento confirmado');
+      el('summaryResponsible').textContent=params.get('responsible')||'Sin información disponible';
+      el('summaryActivity').textContent=params.get('latestActivity')||'Sin información disponible';
+    }
+
     const visible=canView();
     const accessKey=context()+':'+role()+':'+el('scopeScenario').value;
     if(visible&&role()==='Administrador'&&!accessed.has(accessKey)){accessed.add(accessKey);audit.unshift({context:context(),key:accessKey,block:'Acceso de apoyo auditado · '+el('scopeScenario').selectedOptions[0].text,who:role(),when:now(),changes:[]});renderAudit();}
     for(const child of host.children)if(child!==closure)child.hidden=!visible;
     ['closureFields','closureContext','closureCompletion','directionAddress','openDirection','directionBack','fleetRegistration'].forEach(id=>{if(!visible)el(id).hidden=true;});
     if(visible){el('closureContext').hidden=false;el('closureCompletion').hidden=false;}
-    fieldHost().hidden=!visible||!channelAllowed()||(segment()==='empresas'&&!directionView);
-    if(el('decisionPositionPanel'))el('decisionPositionPanel').hidden=!visible||!channelAllowed()||(segment()==='empresas'&&!directionView);
+    renderSuggestions();
+    fieldHost().hidden=!visible||!channelAllowed()||(!profileAvailable());
+    if(el('decisionPositionPanel'))el('decisionPositionPanel').hidden=!visible||!channelAllowed()||(!profileAvailable());
     if(mobile)refreshMobileClassification();else refreshClassification();
     el('closureFields').hidden=!visible||!channelAllowed();
     el('commercialEdit').hidden=!visible||!!commercialDraft||!canCommercial();
@@ -226,7 +245,7 @@
     if(decisionContacts().length){if(before.PERFIL_PUESTO_DECISOR===undefined)delete data.PERFIL_PUESTO_DECISOR;else data.PERFIL_PUESTO_DECISOR=before.PERFIL_PUESTO_DECISOR;}
     if(mobile) dataStore[currentKey()]=clone(data); else store[window.key()]=clone(data);
     recordChange(key,'Perfil',before,data,{...Object.fromEntries(catalog[segment()].map((q,i)=>[i,q.q])),PERFIL_PUESTO_DECISOR:'Puesto del decisor'});
-    profileHistory.set(key,clone(data)); editing=false; el('confirmProfileConflict').hidden=true;
+    editing=false; el('confirmProfileConflict').hidden=true;
     redraw(); announce('Cambios guardados. '+el('closureCompletion').textContent+'. Puedes completar las respuestas después.');
   }
   function field(name,label,type='text',options=null,editable=canEdit()) {
@@ -237,12 +256,12 @@
   }
   function renderCommercial() {
     completion();
-    const isDirection=segment()==='empresas'&&directionView;
+    const isDirection=isCompany()&&directionView;
     el('closureContext').textContent = isDirection ? `Dirección · ${el('direction').selectedOptions[0]?.textContent}` : 'Cuenta · '+client();
     el('directionAddress').hidden=!isDirection;
     el('directionAddress').textContent=el('direction').selectedIndex===0?'Av. Demo Logística 529 · Tonalá, Jalisco · Dirección ficticia':'Av. Demo Administración 20 · Querétaro · Dirección ficticia';
     el('directionBack').hidden = !isDirection;
-    el('openDirection').hidden = segment()!=='empresas'||isDirection;
+    el('openDirection').hidden = !isCompany()||isDirection;
     el('closureFields').innerHTML = field('status',isDirection?'Estatus comercial':'Estatus del cliente','text',['Nuevo','Activo','Sin compra','Perdido'],canStatus())+
       field('situation','Situación actual','text',situations())+field('root','Causa raíz')+field('plan','Plan de acción')+
       (isDirection ? field('service','¿Este cliente es? · cuenta para completar','text',services) : '') + field('reason','Motivo del cambio de estatus','text',null,canStatus());
@@ -282,13 +301,12 @@
     const before=clone(saved()); records.set(context(),clone(commercialDraft));
     recordChange(key,'Información adicional',before,commercialDraft,{status:'Estatus',situation:'Situación actual',root:'Causa raíz',plan:'Plan de acción',service:'¿Este cliente es?',reason:'Motivo del cambio de estatus'});
     commercialDraft=null;pendingDirection=false;conflictReview=false;renderCommercial();announce('Información adicional guardada en este contexto.');
-    if(parent!==window && !directionView) parent.postMessage({type:'epico:diagnosis-saved',clientId:client(),values:clone(saved()),date:new Date().toLocaleDateString('es-MX')},location.origin);
   }
   const host=el(mobile?'profile':'diag');
   const closure=document.createElement('section');closure.className='card closure-card';
-  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.18 · 23 nov 2026 · datos ficticios</small></div>
+  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.22 · 25 nov 2026 · datos ficticios</small></div>
     <div id="closureNotice" class="notice closure-notice" role="status" tabindex="-1">Guardado manual. Las respuestas opcionales pueden completarse después.</div>
-    <p id="closureCompletion" class="pill"></p><h3 id="closureContext"></h3><p id="directionAddress" class="sub"></p>
+    <p id="diagnosisAccount" class="sub" ${mobile?'hidden':''}></p><p id="closureCompletion" class="pill"></p><h3 id="closureContext"></h3><p id="directionAddress" class="sub"></p>
     <div class="row"><button id="directionBack" class="${buttonClass} alt">Volver a Cuenta</button><button id="openDirection" class="${buttonClass} alt">Abrir Dirección seleccionada</button></div>
     <p id="fleetRegistration" class="sub"></p>
     <details class="closure-demo"><summary>Escenarios de prueba · simulación</summary><div class="row">
@@ -297,7 +315,11 @@
     <label><input id="supportPermission" type="checkbox" checked> Función de edición de apoyo (demo)</label>
     <label>CANAL del vendedor asignado (demo)<select id="advisorChannel"><option value="">Sin CANAL confirmado</option>${Object.keys(catalog).map(k=>'<option '+(k===(params.get('advisorSegment')||segment())?'selected':'')+'>'+escape(k)+'</option>').join('')}</select></label>
     <label><input id="realAdministrator" type="checkbox"> Administrador real operando con el rol seleccionado (demo, sin sumar permisos)</label>
-    <label>Contactos decisores (demo)<select id="decisorScenario"><option value="none">Sin contactos decisores</option><option value="multiple">Dos contactos decisores ficticios</option></select></label>
+    <label><input type="checkbox" id="sameEstablishment"> Mismo establecimiento verificado (demo)</label>
+    <label><input type="checkbox" id="sameDecisor"> Mismo decisor verificado (demo)</label>
+    <label><input type="checkbox" id="sameScope"> Mismo alcance de compras e inventario (demo)</label>
+    <label>ClienteService (demo)<select id="decisionService"><option value="deferred">Consulta diferida · captura manual</option><option value="available">Consulta disponible (simulada)</option></select></label>
+    <label>Contactos decisores (demo)<select id="decisorScenario" disabled><option value="none">Sin contactos decisores</option><option value="multiple">Dos contactos decisores ficticios</option></select></label>
     <label>Estado del cliente <select id="clientScenario"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
     <label><input type="checkbox" id="networkDemo" checked> Conexión disponible</label>
     <button id="expireSession" class="${buttonClass} alt">Simular sesión vencida</button><button id="resumeSession" class="${buttonClass} alt" hidden>Iniciar sesión de nuevo (demo)</button>
@@ -309,9 +331,13 @@
     <input id="strategyRequest" aria-label="Solicitud de Negocio para estrategia" placeholder="Referencia de solicitud de Negocio (demo)" hidden>
     <div class="row"><button id="commercialEdit" class="${buttonClass}">Modificar información adicional</button><button id="commercialSave" class="${buttonClass}">Guardar</button><button id="commercialCancel" class="${buttonClass} alt">Cancelar</button></div>
     <p class="sub">Si falta una opción, solicita su revisión al equipo de Desarrollo. Negocio valida y Desarrollo aplica.</p>
-    <button id="confirmProfileConflict" class="${buttonClass} alt" hidden>Confirmar Perfil después de revisar diferencias</button>
-    <button id="recoverProfile" class="${buttonClass} alt" hidden>Recuperar respuestas anteriores para revisión</button>`;
+    <button id="confirmProfileConflict" class="${buttonClass} alt" hidden>Confirmar Perfil después de revisar diferencias</button>`;
   host.prepend(closure);
+  const proposal=document.createElement('section');
+  proposal.id='profileSuggestions';proposal.className='notice';proposal.hidden=true;
+  proposal.innerHTML='<h3>Respuestas sugeridas</h3><p>Selecciona las respuestas que quieras aplicar a la captura del Perfil.</p><div id="suggestionFields"></div><button id="applySuggestions" type="button" class="'+buttonClass+' alt">Aplicar a la captura</button>';
+  el('businessProfileHeading').parentElement.after(proposal);
+  el('applySuggestions').onclick=applySuggestions;
   const historyHost=el(mobile?'historyList':'history');
   const historyToggle=document.createElement('button');historyToggle.id='diagnosisHistoryToggle';historyToggle.className=buttonClass+' alt';historyToggle.textContent='Ver historial';historyToggle.setAttribute('aria-expanded','false');closure.append(historyToggle);historyHost.hidden=true;
   historyToggle.onclick=()=>{historyOpen=!historyOpen;renderAudit();};
@@ -321,40 +347,136 @@
     const demo=closure.querySelector('.closure-demo');
     const roleLabel=document.createElement('label');roleLabel.textContent='Rol de prueba ';roleLabel.append(el('role'));demo.append(roleLabel);
     demo.append(el('segmentPicker'));el('segmentPicker').hidden=true;
-    const heading=host.querySelector(':scope > .row h2');if(heading)heading.textContent='Cuestionario del segmento';
   }
-  const management=document.createElement('section');management.className='card';
-  const currentDate=new Date();const tomorrow=new Date(currentDate);tomorrow.setDate(tomorrow.getDate()+1);
-  management.innerHTML=`<h3>Historial de gestión · demostración</h3><p><b>Última actividad:</b> Visita realizada · ${escape(currentDate.toLocaleDateString('es-MX'))}</p><p>Solo las actividades realizadas actualizan esta fecha. Sin histórico de visitas o agenda de Salesforce.</p><div class="closure-activities"><p>Visita · ${escape(currentDate.toLocaleDateString('es-MX'))} · Realizada</p><p>Seguimiento · ${escape(tomorrow.toLocaleDateString('es-MX'))} · Programada</p><p>Visita · ${escape(currentDate.toLocaleDateString('es-MX'))} · Cancelada</p></div>`;
-  host.append(management);
   const style=document.createElement('style');style.textContent='#fields[hidden],#questions[hidden]{display:none!important}.closure-card{margin-bottom:18px}.closure-card .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}.closure-card textarea,.closure-card select,.closure-card input:not([type=checkbox]),.closure-search{width:100%;padding:11px;border:1px solid #bccbdd;border-radius:6px;font:inherit;background:white;box-sizing:border-box}.closure-card label{display:block;margin-bottom:6px}.closure-card small{display:block;color:#52617b}.closure-card .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.closure-demo{padding:12px;border:1px dashed #c2ccdb;margin:16px 0}.closure-demo summary{cursor:pointer}.closure-notice{padding:12px;border-radius:6px;background:#eaf4fc;margin:12px 0}.closure-notice.warn{background:#fff3d7}.closure-card [hidden]{display:none!important}.closure-card button{min-height:42px}.history-item{border-bottom:1px solid #dce4ef;padding:12px;overflow-wrap:anywhere}@media(max-width:600px){.closure-card .fields{grid-template-columns:1fr}.closure-card{padding:14px}.closure-card h2{font-size:20px}}';document.head.append(style);
   el('commercialEdit').onclick=()=>{if(!canCommercial())return;commercialDraft=clone(saved());commercialStart=clone(commercialDraft);commercialDraft.reason='';commercialBaseline=revision(context()+':Información adicional');conflictReview=false;renderCommercial();};
-  el('decisorScenario').onchange=()=>{if(confirmLeave())redraw();};
+  for(const id of ['decisionService','decisorScenario']){
+    const control=el(id);
+    let confirmed=control.value;
+    control.onchange=()=>{
+      if(!confirmLeave()){control.value=confirmed;return;}
+      confirmed=control.value;
+      el('decisorScenario').disabled=el('decisionService').value!=='available';
+      redraw();
+    };
+  }
+  const equivalents = [
+    ['Tipo de vialidad donde esta ubicado', 'establishment'],
+    ['¿Cuénta con otras sucursales?'],
+    ['Cantidad de Sucursales', 'branches'],
+    ['¿El negocio se encuentra rotulado?', 'establishment'],
+    ['Cantidad de mostradoristas'],
+    ['Espacio mostrador / interior exhibicion', 'establishment'],
+    ['Tipo de unidades de reparto'],
+    ['Redes sociales que maneja'],
+    ['Tipo de atencion preferida'],
+    ['Dias de visita o llamada'],
+    ['Cumpleaños, tomador decisión de compra', 'decisor'],
+    ['Hobbies, tomador de desicion de compra', 'decisor'],
+    ['Faturacion mensual compra a proveedores', 'purchases'],
+    ['Valor de almacen o Inventario', 'inventory'],
+  ];
+  const hasValue = value => Array.isArray(value) ? value.length > 0 : value != null && value !== '';
+  function collectSuggestions(previous, next, before, destination) {
+    const result = [];
+    const matchedDecisor = el('sameDecisor').checked;
+    const allowedPair = [previous,next].every(value=>['Refa','Moto part'].includes(value));
+    if (allowedPair) for (const [name,condition] of equivalents) {
+      const from = catalog[previous].findIndex(question=>question.q===name);
+      const to = catalog[next].findIndex(question=>question.q===name);
+      let value = before[from];
+      if (from<0 || to<0 || hasValue(destination[to]) || !hasValue(value)) continue;
+      const question = catalog[next][to];
+      if (condition==='establishment' && !el('sameEstablishment').checked) continue;
+      if (condition==='decisor' && !matchedDecisor) continue;
+      if (condition==='branches') {
+        const originBranch = catalog[previous].findIndex(q=>/otras sucursales/i.test(q.q));
+        const targetBranch = catalog[next].findIndex(q=>/otras sucursales/i.test(q.q));
+        if ((destination[targetBranch] || before[originBranch])!=='Si' || before[originBranch]!=='Si' ||
+          !Number.isInteger(Number(value)) || Number(value)<1) continue;
+      }
+      const economic = condition==='purchases' || condition==='inventory';
+      if (economic) {
+        if(!el('sameScope').checked) continue;
+        const higherRanges = ['100 mil a menos de 250 mil','250 mil a menos de 500 mil','500 mil o más'];
+        if(condition==='inventory' && !higherRanges.includes(value)) continue;
+        if(condition==='purchases' && value!=='50 mil a menos de 100 mil'){
+          if(previous!=='Refa' || next!=='Moto part' || !higherRanges.includes(value)) continue;
+          value='100 mil o más';
+        }
+      }
+      if (question.t==='single' && !question.options.includes(value)) continue;
+      if (question.t==='multi' && (!Array.isArray(value) || value.some(item=>!question.options.includes(item)) || (value.includes('Ninguno') && value.length>1))) continue;
+      result.push({to,name,value:clone(value),economic});
+    }
+    const position='PERFIL_PUESTO_DECISOR';
+    if (matchedDecisor && ['Refa','Moto part','Talleres'].includes(previous) && ['Refa','Moto part','Talleres'].includes(next) &&
+      !decisionContacts().length && hasValue(before[position]) && !hasValue(destination[position])) {
+      result.push({to:position,name:'Puesto del decisor',value:before[position],economic:false});
+    }
+    return result;
+  }
+  function renderSuggestions() {
+    const panel=el('profileSuggestions');
+    panel.hidden=!suggestions.length || !canEdit() || !profileAvailable() || directionView;
+    if(panel.hidden)return;
+    el('suggestionFields').innerHTML=suggestions.map(({name,value,economic},index)=>
+      '<label><input type="checkbox" data-suggestion="'+index+'"> '+escape(name)+': '+escape(Array.isArray(value)?value.join(', '):value)+(economic?' · Antigüedad desconocida':'')+'</label>').join('');
+  }
+  function applySuggestions() {
+    const selected=[...el('suggestionFields').querySelectorAll('input:checked')].map(input=>suggestions[Number(input.dataset.suggestion)]);
+    if(!selected.length || !canEdit() || directionView)return;
+    const branchIndex=catalog[segment()].findIndex(question=>/otras sucursales/i.test(question.q));
+    const branches=selected.find(item=>item.to===branchIndex)?.value ?? profileData()[branchIndex];
+    if(branches!=='Si' && selected.some(item=>item.name==='Cantidad de Sucursales')){
+      announce('Confirma primero que cuenta con otras sucursales para aplicar la cantidad.',true);
+      return;
+    }
+    if(!editing)beginProfile();
+    else if(mobile)collectProfile();
+    for (const {to,value} of selected) {
+      if(hasValue(profileData()[to]))continue;
+      if(mobile){draft[to]=clone(value);continue;}
+      if(to==='PERFIL_PUESTO_DECISOR'){el('decisionPosition').value=value;continue;}
+      const field=fieldHost().querySelector('[data-index="'+to+'"]');
+      if(Array.isArray(value)){multiSelected[to]=clone(value);multiChips(to);continue;}
+      const input=field?.querySelector('select,input[type=number],input[type=date]');
+      if(input){input.value=value;input.dispatchEvent(new Event('change'));}
+    }
+    suggestions=[];
+    if(mobile)redraw();else renderSuggestions();
+    announce('Sugerencias aplicadas a la captura. Pulsa Guardar para confirmarlas.');
+  }
+  let confirmedChannel=advisorChannel(), confirmedMaster=masterSegment();
   function switchChannel() {
-    if(!confirmLeave())return;
-    const previous=segment(), previousValues=clone(profileData()), next=advisorChannel()==='Moto part'?'Moto part':masterSegment();
+    if(!confirmLeave()){
+      el('advisorChannel').value=confirmedChannel;
+      el('masterSegment').value=confirmedMaster;
+      return;
+    }
+    confirmedChannel=advisorChannel(); confirmedMaster=masterSegment();
+    const previous=segment(), fromDirection=directionView, before=clone(profileData()), next=accountProfile();
+    suggestions=[];
+    directionView=false;
     if(!catalog[next]){redraw();announce('Contexto comercial sin confirmar: solo datos generales autorizados.',true);return;}
-    profileHistory.set(profileContext(),previousValues);
-    if(mobile)el('segment').value=next;else clientSegment=next;
-    const nextValues=clone(profileData());
-    catalog[next].forEach((q,i)=>{
-      // Demo identity requires identical approved prompt/type; option validity is checked separately.
-      const j=catalog[previous].findIndex(old=>old.q===q.q&&old.t===q.t),value=previousValues[j];
-      if(nextValues[i]!==undefined||j<0||value==null||value==='')return;
-      if(q.t==='single'&&!q.options.includes(value))return;
-      if(q.t==='multi'&&(!Array.isArray(value)||value.some(v=>!q.options.includes(v))))return;
-      nextValues[i]=clone(value);
-    });
-    if(mobile)dataStore[currentKey()]=nextValues;else store[window.key()]=nextValues;
-    directionView=false;redraw();announce('Formulario del canal del asesor. Respuestas compatibles precargadas; revisa antes de guardar.');
+    setSegment(next);
+    if(!fromDirection && previous!==next && canEdit()){
+      suggestions=collectSuggestions(previous,next,before,profileData());
+    }
+    redraw();
   }
   el('advisorChannel').onchange=switchChannel;
   el('masterSegment').onchange=switchChannel;
   ['scopeScenario','supportPermission'].forEach(id=>el(id).onchange=()=>{if(confirmLeave())redraw();});
   el('commercialSave').onclick=saveCommercial;
   el('commercialCancel').onclick=()=>{if(confirmLeave())redraw();};
-  el('directionBack').onclick=()=>{if(confirmLeave()){directionView=false;redraw();}};
-  el('openDirection').onclick=()=>{if(confirmLeave()){directionView=true;redraw();}};
+  function showDirection(show){
+    directionView=show;
+    setSegment(show?'empresas':accountProfile());
+    redraw();
+  }
+  el('directionBack').onclick=()=>{if(confirmLeave())showDirection(false);};
+  el('openDirection').onclick=()=>{if(isCompany()&&confirmLeave())showDirection(true);};
   el('networkDemo').onchange=event=>{networkDemo=event.target.checked;announce(networkDemo?'Conexión disponible. Puedes reintentar el guardado.':'Sin conexión. La captura se conserva en esta pantalla, sin guardar.');};
   el('expireSession').onclick=()=>{sessionExpired=true;el('resumeSession').hidden=false;announce('Sesión vencida (simulación). La captura permanece temporalmente en memoria; vuelve a iniciar sesión.',true);};
   el('resumeSession').onclick=()=>{sessionExpired=false;el('resumeSession').hidden=true;announce(canEdit()?'Sesión recuperada. Permisos revalidados; al guardar se revisarán los conflictos.':'Sesión recuperada. Este contexto es de consulta y no permite guardar.');};
@@ -371,26 +493,29 @@
   };
   el('commercialConflict').onclick=()=>{const before=clone(saved()),after={...before,plan:'Propuesta actualizada por Supervisor (demo)'};records.set(context(),after);recordChange(context()+':Información adicional','Información adicional · otro usuario (demo)',before,after);renderAudit();announce('Otro usuario guardó Información adicional (demo). El Perfil sigue siendo independiente.');};
   el('confirmProfileConflict').onclick=saveProfile;
-  el('recoverProfile').onclick=()=>{if(!canEdit())return;const previous=profileHistory.get(profileContext());if(!previous)return;beginProfile();if(mobile)draft=clone(previous);else store[window.key()]=clone(previous);redraw();announce('Respuestas recuperadas para revisión. Valida y pulsa Guardar; no se guardan automáticamente.');};
   let previousDirection=el('direction').value;
-  el('direction').onchange=()=>{if(confirmLeave()){previousDirection=el('direction').value;directionView=true;redraw();}else el('direction').value=previousDirection;};
+  el('direction').onchange=()=>{if(confirmLeave()){previousDirection=el('direction').value;showDirection(true);}else el('direction').value=previousDirection;};
   let previousRole=role();el('role').onchange=()=>{const next=role();if(!confirmLeave()){el('role').value=previousRole;return;}previousRole=next;redraw();};
   ['KAM','Telemarketing'].forEach(value=>{if(![...el('role').options].some(o=>o.value===value))el('role').add(new Option(value,value));});
   if(mobile){
     render=redraw;
     const originalOpenClient=openClient;
     openClient=id=>{
-      editing=false;commercialDraft=null;directionView=false;
+      editing=false;commercialDraft=null;directionView=false;suggestions=[];
+      const previousClient=client();
       originalOpenClient(id);
+      if(client()!==previousClient)for(const id of ['sameEstablishment','sameDecisor','sameScope'])el(id).checked=false;
       const currentSegment=segment();
       el('masterSegment').value=currentSegment==='Moto part'?'Refa':currentSegment;
-      el('advisorChannel').value=params.get('advisorSegment')||currentSegment;
+      el('advisorChannel').value=(params.get('clientId')===client()?params.get('advisorSegment'):'')||activeCustomer.diagnosisChannel||currentSegment;
+      confirmedChannel=advisorChannel();confirmedMaster=masterSegment();
       historyOpen=false;
+      setSegment(accountProfile());
       redraw();
     };
     toggleEdit=beginProfile;saveEdit=saveProfile;cancelEdit=()=>{if(confirmLeave())redraw();};
     const oldSegment=segment();let previousSegment=oldSegment;
-    changeSegment=()=>{const next=segment();if(!confirmLeave()){el('segment').value=previousSegment;return;}previousSegment=next;directionView=false;redraw();el('recoverProfile').hidden=!profileHistory.has(profileContext());};
+    changeSegment=()=>{const next=segment();if(!confirmLeave()){el('segment').value=previousSegment;return;}previousSegment=next;directionView=false;redraw();};
   }else{
     draw=()=>{originalRender();decorateProfile();renderCommercial();};
     toggleEdit=()=>editing?saveProfile():beginProfile();cancelEdit=()=>{if(confirmLeave())redraw();};

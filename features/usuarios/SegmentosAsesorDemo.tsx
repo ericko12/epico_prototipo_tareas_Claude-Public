@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import {
-  Alert, Box, Button, Checkbox, FormControlLabel, List, ListItem, ListItemText,
+  Alert, Box, Button, List, ListItem, ListItemText,
   MenuItem, Paper, Stack, TextField, Typography,
 } from "@mui/material";
 
@@ -15,11 +15,21 @@ const advisors: { id: string; name: string; segment: Segment | "" }[] = [
   { id: "ASE-03", name: "Sofía Cruz", segment: "Empresas" },
 ];
 
+const supervisors: Record<string, { id: string; name: string; level: string }[]> = {
+  "ASE-01": [
+    { id: "SUP-01", name: "Supervisor de prueba 01", level: "Regional" },
+    { id: "SUP-02", name: "Supervisor de prueba 02", level: "Territorial" },
+    { id: "SUP-03", name: "Supervisor de prueba 03", level: "Divisional" },
+  ],
+  "ASE-03": [{ id: "SUP-02", name: "Supervisor de prueba 02", level: "Territorial" }],
+};
+
 type Change = {
   advisorId: string;
   before: Segment | "";
   after: Segment;
   at: string;
+  requestedBy: string;
 };
 
 const administrator = "Administrador de segmentos (demo)";
@@ -34,24 +44,27 @@ export default function SegmentosAsesorDemo() {
   const history = changes.filter((change) => change.advisorId === advisor.id);
   const currentSegment = history[0]?.after ?? advisor.segment;
   const [nextSegment, setNextSegment] = useState<Segment | "">("");
-  const [requested, setRequested] = useState(false);
+  const [supervisorId, setSupervisorId] = useState("");
+  const eligibleSupervisors = supervisors[advisor.id] ?? [];
+  const supervisor = eligibleSupervisors.find((entry) => entry.id === supervisorId);
   const [confirmation, setConfirmation] = useState("");
-  const canSave = authorized && nextSegment !== "" && nextSegment !== currentSegment && requested;
+  const canSave = authorized && nextSegment !== "" && nextSegment !== currentSegment && !!supervisor;
 
   function resetForm() {
     setNextSegment("");
-    setRequested(false);
+    setSupervisorId("");
     setConfirmation("");
   }
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSave || !segments.includes(nextSegment)) return;
+    if (!canSave || !supervisor || !segments.includes(nextSegment)) return;
     const entry = {
       advisorId: advisor.id,
       before: currentSegment,
       after: nextSegment,
       at: new Date().toISOString(),
+      requestedBy: supervisor.name + " · " + supervisor.level,
     };
     setChanges((previous) => [entry, ...previous]);
     resetForm();
@@ -103,12 +116,22 @@ export default function SegmentosAsesorDemo() {
                   <MenuItem key={segment} value={segment} disabled={segment === currentSegment}>{segment}</MenuItem>
                 ))}
               </TextField>
-              <FormControlLabel
-                control={<Checkbox checked={requested} onChange={(event) => setRequested(event.target.checked)} />}
-                label="El Supervisor solicitó este cambio"
-              />
+              <TextField
+                id="requesting-supervisor"
+                select
+                label="Supervisor que solicita el cambio"
+                value={supervisorId}
+                disabled={!eligibleSupervisors.length}
+                helperText={eligibleSupervisors.length ? "Elige al supervisor que solicita el cambio." : "Este asesor no tiene un supervisor elegible para registrar el cambio."}
+                onChange={(event) => { setSupervisorId(event.target.value); setConfirmation(""); }}
+              >
+                <MenuItem value="" disabled>Selecciona un supervisor</MenuItem>
+                {eligibleSupervisors.map((entry) => (
+                  <MenuItem key={entry.id} value={entry.id}>{entry.name} · {entry.level}</MenuItem>
+                ))}
+              </TextField>
               <Stack direction={{ xs: "column", sm: "row" }} gap={1} justifyContent="flex-end">
-                <Button variant="outlined" onClick={resetForm} disabled={!nextSegment && !requested}>Cancelar</Button>
+                <Button variant="outlined" onClick={resetForm} disabled={!nextSegment && !supervisorId}>Cancelar</Button>
                 <Button type="submit" variant="contained" disabled={!canSave}>Guardar</Button>
               </Stack>
               {confirmation && <Alert severity="success" role="status">{confirmation}</Alert>}
@@ -124,7 +147,7 @@ export default function SegmentosAsesorDemo() {
                   <ListItem key={`${entry.at}-${history.length - index}`} disableGutters divider>
                     <ListItemText
                       primary={`${entry.before || "Sin segmento asignado"} → ${entry.after}`}
-                      secondary={`${clock.format(new Date(entry.at))} · ${administrator} · Solicitud del Supervisor`}
+                      secondary={`${clock.format(new Date(entry.at))} · ${administrator} · Solicitó: ${entry.requestedBy}`}
                     />
                   </ListItem>
                 ))}
