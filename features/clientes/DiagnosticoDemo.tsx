@@ -35,7 +35,7 @@ const entryParams=new URLSearchParams({
 const base=process.env.NEXT_PUBLIC_BASE_PATH||"";
 const mobileUrl=base+"/diagnostico-mobile.html?"+entryParams;
 const diagnosisParams=new URLSearchParams(entryParams);
-Object.entries({embedded:"1",version:"022",relationId:relation?.relationId??"",advisorRelationId:advisorRelation?.relationId??""})
+Object.entries({embedded:"1",version:"025",relationId:relation?.relationId??"",advisorRelationId:advisorRelation?.relationId??""})
   .forEach(([key,value])=>diagnosisParams.set(key,value));
 useEffect(()=>{
  const onFrameMessage=(event:MessageEvent)=>{

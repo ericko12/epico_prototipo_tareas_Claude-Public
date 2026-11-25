@@ -1,4 +1,4 @@
-/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.22.
+/* Shared desktop/mobile interaction layer for SPEC-F2-004 0.25.
  * Diagnosis drafts and revisions live only in memory. No sensitive draft storage.
  * All role, connection and service controls below are explicitly demo scenarios.
  */
@@ -54,8 +54,17 @@
   const saved = () => records.get(context()) || defaults();
   const revision = key => revisions.get(key) || 0;
   const dirty = () => editing || commercialDraft !== null;
-  const approvedSituations = ['Competitividad de precios']; // existing approved demo option; no cross-segment additions
-  const situations = () => isCompany() || segment() === 'Refa' ? approvedSituations : [];
+  // B-35 · Etiquetas y orden de Salesforce para los cuatro segmentos.
+  const approvedSituations = [
+    'Cambio de razon social',
+    'Cerró/Cambio de giro',
+    'Competitividad de precios',
+    'Credito y cobranza',
+    'Disciplina comercial',
+    'Disponibilidad de inventario',
+    'Problema con flujo de efectivo',
+    'Problemas con el servicio',
+  ];
   const services = ['Servicio ligero','Servicio pesado HD','Servicio mixto'];
   const now = () => new Date().toLocaleString('es-MX');
   function announce(message, error = false) {
@@ -251,7 +260,7 @@
   function field(name,label,type='text',options=null,editable=canEdit()) {
     const value=(commercialDraft||saved())[name];
     if(!commercialDraft || !editable) return `<div class="field"><label>${label}</label><div class="field-read">${escape(showValue(value))}</div>${!editable?'<small>Solo consulta. '+(name==='status'?'Actualiza un usuario con permiso de Estatus.':'Puedes consultar esta información, pero no modificarla.')+'</small>':''}</div>`;
-    const input=options ? `<select id="commercial-${name}" data-commercial="${name}"><option value="">Sin información disponible</option>${options.map(o=>`<option ${o===value?'selected':''}>${escape(o)}</option>`).join('')}</select>` : `<textarea id="commercial-${name}" data-commercial="${name}" maxlength="500" rows="3">${escape(value)}</textarea><small data-counter="${name}">${String(value).length}/500</small>`;
+    const input=options ? `<select id="commercial-${name}" data-commercial="${name}"><option value="">${name==='situation'?'--Ninguno--':'Sin información disponible'}</option>${options.map(o=>`<option ${o===value?'selected':''}>${escape(o)}</option>`).join('')}</select>` : `<textarea id="commercial-${name}" data-commercial="${name}" maxlength="500" rows="3">${escape(value)}</textarea><small data-counter="${name}">${String(value).length}/500</small>`;
     return `<div class="field"><label for="commercial-${name}">${label}</label>${input}</div>`;
   }
   function renderCommercial() {
@@ -263,7 +272,7 @@
     el('directionBack').hidden = !isDirection;
     el('openDirection').hidden = !isCompany()||isDirection;
     el('closureFields').innerHTML = field('status',isDirection?'Estatus comercial':'Estatus del cliente','text',['Nuevo','Activo','Sin compra','Perdido'],canStatus())+
-      field('situation','Situación actual','text',situations())+field('root','Causa raíz')+field('plan','Plan de acción')+
+      field('situation','Situación actual','text',approvedSituations)+field('root','Causa raíz')+field('plan','Plan de acción')+
       (isDirection ? field('service','¿Este cliente es? · cuenta para completar','text',services) : '') + field('reason','Motivo del cambio de estatus','text',null,canStatus());
     el('closureFields').querySelectorAll('[data-commercial]').forEach(input=>input.addEventListener('input',()=>{
       commercialDraft[input.dataset.commercial]=input.value;
@@ -280,7 +289,6 @@
     const types=profileData()[typeIndex];
     el('fleetRegistration').hidden=!isDirection;
     el('fleetRegistration').textContent=Array.isArray(types)&&types.length?'Tipo de dirección: '+types.join(', '):'Tipo de dirección sin registrar. Parque vehicular no se interpreta como «No aplica».';
-    el('missingSituation').hidden=situations().length>0;
     renderAudit();
   }
   function saveCommercial() {
@@ -304,7 +312,7 @@
   }
   const host=el(mobile?'profile':'diag');
   const closure=document.createElement('section');closure.className='card closure-card';
-  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.22 · 25 nov 2026 · datos ficticios</small></div>
+  closure.innerHTML=`<div class="row"><h2>Diagnóstico de cliente</h2><small>Versión 0.25 · 25 nov 2026 · datos ficticios</small></div>
     <div id="closureNotice" class="notice closure-notice" role="status" tabindex="-1">Guardado manual. Las respuestas opcionales pueden completarse después.</div>
     <p id="diagnosisAccount" class="sub" ${mobile?'hidden':''}></p><p id="closureCompletion" class="pill"></p><h3 id="closureContext"></h3><p id="directionAddress" class="sub"></p>
     <div class="row"><button id="directionBack" class="${buttonClass} alt">Volver a Cuenta</button><button id="openDirection" class="${buttonClass} alt">Abrir Dirección seleccionada</button></div>
@@ -327,7 +335,7 @@
     <label id="partialDemo"><input id="failCommercial" type="checkbox"> Simular falla del servicio comercial</label></div></details>
     <p id="clientState" role="status"></p>
     <h3>Información adicional</h3><p class="sub">Los valores de Cuenta y Dirección son independientes. Asesor y Supervisor editan Plan y Estatus con motivo. KAM solo consulta.</p>
-    <div id="closureFields" class="fields group"></div><p id="missingSituation" class="sub">No se agregan opciones de Situación actual sin catálogo aprobado para este segmento.</p>
+    <div id="closureFields" class="fields group"></div>
     <input id="strategyRequest" aria-label="Solicitud de Negocio para estrategia" placeholder="Referencia de solicitud de Negocio (demo)" hidden>
     <div class="row"><button id="commercialEdit" class="${buttonClass}">Modificar información adicional</button><button id="commercialSave" class="${buttonClass}">Guardar</button><button id="commercialCancel" class="${buttonClass} alt">Cancelar</button></div>
     <p class="sub">Si falta una opción, solicita su revisión al equipo de Desarrollo. Negocio valida y Desarrollo aplica.</p>
